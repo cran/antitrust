@@ -13,6 +13,7 @@
 aids(shares,margins,prices,diversions,
                  ownerPre,ownerPost,
                  mcDelta=rep(0, length(shares)),
+                 subset=rep(TRUE, length(shares)),
                  priceStart=runif(length(shares)),
                  isMax=FALSE,
                  labels=paste("Prod",1:length(shares),sep=""),
@@ -23,6 +24,7 @@ pcaids(shares,knownElast,mktElast=-1,
               ownerPre,ownerPost,
               knownElastIndex=1,
               mcDelta=rep(0, length(shares)),
+              subset=rep(TRUE, length(shares)),
               priceStart=runif(length(shares)),
               isMax=FALSE,
               labels=paste("Prod",1:length(shares),sep=""),
@@ -33,6 +35,7 @@ pcaids.nests(shares,margins,knownElast,mktElast=-1,
               nests=rep(1,length(shares)),
               knownElastIndex=1,
               mcDelta=rep(0, length(shares)),
+              subset=rep(TRUE, length(shares)),
               priceStart=runif(length(shares)),
               isMax=FALSE,
               nestsParmStart,
@@ -58,12 +61,12 @@ pcaids.nests(shares,margins,knownElast,mktElast=-1,
     according to revenue share is assumed.}
   \item{ownerPre}{EITHER a vector of length k whose values
       indicate which firm produced a product before the merger OR a
-      k x k matrix of pre-merger ownership shares.}
+      k x k matrix of pre-merger ownership shares. }
   \item{ownerPost}{EITHER a vector of length k whose values
     indicate which firm produced a product after the merger OR
     a k x k matrix of post-merger ownership shares.}
   \item{knownElastIndex}{An integer equal to the position of the
-    `knownElast' product in the `shares' vector. Default is 1, which
+    \sQuote{knownElast} product in the \sQuote{shares} vector. Default is 1, which
     assumes that the own-price elasticity of the first product is
     known. }
   \item{nests}{A length k vector identifying which nest a product
@@ -71,7 +74,11 @@ pcaids.nests(shares,margins,knownElast,mktElast=-1,
   \item{mcDelta}{A vector of length k where each element equals the
     proportional change in a product's marginal costs due to
     the merger. Default is 0, which assumes that the merger does not
-  affect any products' marginal cost.}
+    affect any products' marginal cost.}
+  \item{subset}{A vector of length k where each element equals TRUE if
+  the product indexed by that element should be included in the
+  post-merger simulation and FALSE if it should be excluded.Default is a
+  length k vector of TRUE.}
   \item{priceStart}{A vector of length k who elements equal to an
   initial guess of the proportional change in price caused by the
   merger. The default is to draw k random elements from a [0,1] uniform
@@ -82,7 +89,7 @@ pcaids.nests(shares,margins,knownElast,mktElast=-1,
   price coefficient and nest parameters. If missing then the random
   draws with the appropriate restrictions are employed.}
   \item{labels}{A k-length vector of labels.}
-  \item{...}{Additional options to feed to the \code{\link[nleqslv]{nleqslv}}
+  \item{...}{Additional options to feed to the \code{\link[BB]{BBsolve}}
   optimizer used to solve for equilibrium prices.}
 
 }
@@ -106,7 +113,7 @@ pcaids.nests(shares,margins,knownElast,mktElast=-1,
 
   \code{aids} assumes that diversion between the products
   in the market occurs according to revenue share. This assumption may be relaxed
-  by setting `diversions' equal to a k x k matrix of diversion
+  by setting \sQuote{diversions} equal to a k x k matrix of diversion
   ratios. The diagonal of this matrix must equal -1, the off-diagonal
   elements must be between 0 and 1, and the rows must sum to 1.
 
@@ -121,7 +128,7 @@ pcaids.nests(shares,margins,knownElast,mktElast=-1,
   \code{pcaids.nests} extends \code{pcaids} by allowing products
   to be grouped into nests. Although products within the same nest still
   have the independence of irrelevant alternatives (IIA) property,
-  products in different nests do not. Note that the `diversions'
+  products in different nests do not. Note that the \sQuote{diversions}
   argument is absent from \code{pcaids.nests}.
 
   \code{pcaids.nests}  assumes that the share diversion between nests is symmetric
@@ -136,8 +143,8 @@ pcaids.nests(shares,margins,knownElast,mktElast=-1,
  The nesting parameters are constrained to be between 0 and
  1. Therefore, one way to test the validity of the nesting structure is
  to check whether the nesting parameters are between 0 and 1. The value
- of the nesting parameters may be obtained from calling either the `summary' or
- `getNestsParms' functions.
+ of the nesting parameters may be obtained from calling either the \sQuote{summary} or
+ \sQuote{getNestsParms} functions.
 
 
 
@@ -160,12 +167,12 @@ pcaids.nests(shares,margins,knownElast,mktElast=-1,
 
 \references{
   Epstein, Roy and  Rubinfeld, Daniel (2004).
-``Merger Simulation with Brand-Level Margin Data: Extending PCAIDS
-with Nests.''
+\dQuote{Merger Simulation with Brand-Level Margin Data: Extending PCAIDS
+  with Nests.}
 \emph{The B.E. Journal of Economic Analysis \& Policy}, \bold{advances.4}(1), pp. 2.
 
   Epstein, Roy and Rubinfeld, Daniel (2004).
-  ``Effects of Mergers Involving Differentiated Products.''
+  \dQuote{Effects of Mergers Involving Differentiated Products.}
 }
 
 
@@ -209,6 +216,7 @@ ownerPost <- c("A","A","C")
 result.aids <- aids(shares,margins,prices,ownerPre=ownerPre,ownerPost=ownerPost,labels=ownerPre)
 
 
+
 print(result.aids)           # return predicted price change
 summary(result.aids)         # summarize merger simulation
 
@@ -237,12 +245,28 @@ CV(result.aids,14.5e12)     #calculate compensating variation in dollars
                             #14.5e12 is an estimate of total US GDP
 
 
-## AIDS: the following assumes that only one product's elasticity is
+## Get a detailed description of the 'AIDS' class slots
+showClass("AIDS")
+
+## Show all methods attached to the 'AIDS' Class
+showMethods(classes="AIDS")
+
+## Show which class have their own 'elast' method
+showMethods("elast")
+
+## Show the method definition for 'elast' and Class 'AIDS'
+getMethod("elast","AIDS")
+
+
+
+## PCAIDS: the following assumes that only one product's elasticity is
 ##       known as well as the market elasticity.
 
 
 
-result.pcaids <- pcaids(shares,knownElast,mktElast,ownerPre=ownerPre,ownerPost=ownerPost,labels=ownerPre)
+result.pcaids <- pcaids(shares,knownElast,mktElast,
+                        ownerPre=ownerPre,ownerPost=ownerPost,
+                        labels=ownerPre)
 
 print(result.pcaids)           # return predicted price change
 summary(result.pcaids)         # summarize merger simulation
@@ -260,7 +284,21 @@ cmcr(result.pcaids)            #calculate compensating marginal cost reduction
 ## Implement the Hypothetical Monopolist Test
 ## for products A and B using a 5\% SSNIP
 
-HypoMonTest(result.aids,prodIndex=1:2)
+HypoMonTest(result.pcaids,prodIndex=1:2)
+
+
+
+## Nested PCAIDS: in addition to the PCAIDS information requirements,
+##                users must supply the nesting structure as well as margin infromation.
+
+nests <- c('H','L','L') # product A assigned to nest H, products B and C assigned to nest L
+
+
+result.pcaids.nests <- pcaids.nests(shares,knownElast,mktElast,margins=margins,
+                                    nests=nests,ownerPre=ownerPre,
+                                    ownerPost=ownerPost,labels=ownerPre)
+
+
 
 
 }

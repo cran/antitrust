@@ -6,11 +6,16 @@
   with user-supplied demand parameters under the assumption that all firms in the market are playing a
   differentiated products Bertrand pricing game.}
 
-\usage{sim(prices, demand=c("Linear","AIDS","LogLin","Logit","CES","LogitNests","CESNests","LogitCap"),
+\usage{sim(prices, 
+           demand=c( "Linear","AIDS","LogLin",
+                     "Logit","CES","LogitNests",
+                     "CESNests","LogitCap"),
                      demand.param,
                      ownerPre,ownerPost,nests, capacities,
                      mcDelta=rep(0,length(prices)),
-                     priceStart=prices,
+                     subset=rep(TRUE,length(prices)),
+                     priceOutside,
+                     priceStart,
                      labels=paste("Prod",1:length(prices),sep=""),...
              )
              }
@@ -20,9 +25,9 @@
   \item{prices}{A length k vector of product prices.}
   \item{demand}{A character string indicating the type of demand system
     to be used in the merger simulation. Supported demand systems are
-    linear (`Linear'), log-linear(`LogLin'), logit (`Logit'), nested logit
-    (`LogitNests'), ces (`CES'), nested CES (`CESNests') and capacity
-    constrained Logit (`LogitCap').}
+    linear (\sQuote{Linear}), log-linear(\sQuote{LogLin}), logit (\sQuote{Logit}), nested logit
+      (\sQuote{LogitNests}), ces (\sQuote{CES}), nested CES (\sQuote{CESNests}) and capacity
+	  constrained Logit (\sQuote{LogitCap}).}
   \item{demand.param}{ See Below.}
   \item{ownerPre}{EITHER a vector of length k whose values
     indicate which firm produced a product pre-merger OR
@@ -31,18 +36,25 @@
     indicate which firm produced a product after the merger OR
     a k x k matrix of post-merger ownership shares.}
   \item{nests}{A length k vector identifying the nest that each
-    product belongs to. Must be supplied when `demand' equals `CESNests' and
-    `LogitNests'.}
+    product belongs to. Must be supplied when \sQuote{demand} equals \sQuote{CESNests} and
+    \sQuote{LogitNests}.}
   \item{capacities}{A length k vector of product capacities.  Must be
-    supplied when `demand' equals `LogitCap'.}
+    supplied when \sQuote{demand} equals \sQuote{LogitCap}.}
   \item{mcDelta}{A vector of length k where each element equals the
     proportional change in a product's marginal costs due to
     the merger. Default is 0, which assumes that the merger does not
     affect any products' marginal cost.}
+  \item{subset}{A vector of length k where each element equals TRUE if
+     the product indexed by that element should be included in the
+     post-merger simulation and FALSE if it should be excluded.Default is a
+     length k vector of TRUE.}
+   \item{priceOutside}{A length 1 vector indicating the price of the
+     outside good. This option only applies to the \sQuote{Logit} class and  its child classes     Default for \sQuote{Logit},\sQuote{LogitNests}, and \sQuote{LogitCap} is 0, and for \sQuote{CES} and \sQuote{CesNests} is 1. }
   \item{priceStart}{A length k vector of starting values used to solve for
-    equilibrium price. Default is the `prices' vector.}
-  \item{labels}{A k-length vector of labels. Default is "Prod#", where
-    `#' is a number between 1 and the length of `prices'.}
+    equilibrium price. Default is the \sQuote{prices} vector for all values of
+    demand except for \sQuote{AIDS}, which is set equal to a vector of 0s.}
+  \item{labels}{A k-length vector of labels. Default is \dQuote{Prod#}, where
+    \sQuote{#} is a number between 1 and the length of \sQuote{prices}.}
   \item{...}{Additional options to feed to the
     optimizer used to solve for equilibrium prices.}
 }
@@ -53,43 +65,43 @@
   \code{sim} simulates the effects of a merger in a market where
   firms are playing a differentiated products pricing game.
 
-  If `demand' equals `Linear', `LogLin', or `AIDS', then `demand.parm' must be a
-  list containing `slopes', a k x k matrix of slope coefficients, and
-  `intercepts', a length-k vector of intercepts. Additionally, if
-  `demand' equals `AIDS', `demand.parm' must contain `mktElast', an
-  estimate of aggregate market elasticity.  For `Linear'
+  If \sQuote{demand} equals \sQuote{Linear}, \sQuote{LogLin}, or \sQuote{AIDS}, then \sQuote{demand.param} must be a
+  list containing \sQuote{slopes}, a k x k matrix of slope coefficients, and
+  \sQuote{intercepts}, a length-k vector of intercepts. Additionally, if
+  \sQuote{demand} equals \sQuote{AIDS}, \sQuote{demand.param} must contain \sQuote{mktElast}, an
+  estimate of aggregate market elasticity.  For \sQuote{Linear}
   demand models, \code{sim} returns an error if any intercepts are
-  negative, and for both `Linear', `LogLin', and `AIDS' models,  \code{sim}
+  negative, and for both \sQuote{Linear}, \sQuote{LogLin}, and \sQuote{AIDS} models,  \code{sim}
   returns an error if not all diagonal elements of the slopes matrix are
   negative.
 
-  If `demand' equals `Logit' or `LogitNests', then
-  `demand.parm' must equal a list containing
+  If \sQuote{demand} equals \sQuote{Logit} or \sQuote{LogitNests}, then
+  \sQuote{demand.param} must equal a list containing
   \itemize{
     \item{alpha}{The price coefficient.}
-    \item{meanval}{A length-k vector of mean valuations `meanval'. If
-  none of the values of `meanval' are zero, an outside good is assumed
+    \item{meanval}{A length-k vector of mean valuations \sQuote{meanval}. If
+	none of the values of \sQuote{meanval} are zero, an outside good is assumed
   to exist.}
 }
-  If demand equals `CES' or `CESNests', then
-  `demand.parm' must equal a list containing
+If demand equals \sQuote{CES} or \sQuote{CESNests}, then
+\sQuote{demand.param} must equal a list containing
 
   \itemize{
     \item{gamma}{ The price coefficient,}
     \item{alpha}{The coefficient on the numeraire good. May instead be
-      calibrated using `shareInside',}
-    \item{meanval}{A length-k vector of mean valuations `meanval'. If
-  none of the values of `meanval' are zero, an outside good is assumed
+      calibrated using \sQuote{shareInside},}
+      \item{meanval}{A length-k vector of mean valuations \sQuote{meanval}. If
+	none of the values of \sQuote{meanval} are zero, an outside good is assumed
   to exist,}
     \item{shareInside}{ The budget share of all products in the
     market. Default is 1, meaning that all consumer wealth is spent on
-    products in the market. May instead be specified using `alpha'.}
+    products in the market. May instead be specified using \sQuote{alpha}.}
 
 }
 }
 
 \value{\code{sim} returns an instance of the class specified by the
-  `demand' argument.}
+  \sQuote{demand} argument.}
 
 
 
@@ -120,11 +132,11 @@ nests <- c("Reg","Reg","Reg","Light","Light","Reg")
 
 price    <- c(.0441,.0328,.0409,.0396,.0387,.0497)
 
-demand.parm=list(alpha=-48.0457,
+demand.param=list(alpha=-48.0457,
                  meanval=c(0,0.4149233,1.1899885,0.8252482,0.1460183,1.4865730)
                 )
 
-sim.logit <- sim(price,demand="Logit",demand.parm,ownerPre=ownerPre,ownerPost=ownerPost)
+sim.logit <- sim(price,demand="Logit",demand.param,ownerPre=ownerPre,ownerPost=ownerPost)
 
 
 

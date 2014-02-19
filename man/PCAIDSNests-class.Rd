@@ -3,12 +3,13 @@
 \docType{class}
 \alias{PCAIDSNests-class}
 %\alias{calcSlopes,PCAIDSNests-method}
-%\alias{getNestsParms,PCAIDSNests-method}
+\alias{getNestsParms}
+\alias{getNestsParms,PCAIDSNests-method}
 
 
-\title{Class "PCAIDSNests"}
+\title{Class \dQuote{PCAIDSNests}}
 \description{
-  The "PCAIDSNests" class contains all the information needed to
+  The \dQuote{PCAIDSNests} class contains all the information needed to
   calibrate a nested PCAIDS
   demand system and perform a merger analysis under the assumption that
   firms are playing a differentiated Bertrand products pricing game.
@@ -30,9 +31,10 @@ Objects can be created by using the constructor \code{\link{pcaids.nests}}.
 }
 \section{Extends}{
   Class \code{\linkS4class{PCAIDS}}, directly.
-  Class \code{\linkS4class{AIDS}}, by class "PCAIDS", distance 2.
-  Class \code{\linkS4class{Linear}}, by class "AIDS", distance 3.
-  Class \code{\linkS4class{Bertrand}}, by class "Linear", distance 4.
+  Class \code{\linkS4class{AIDS}}, by class \code{\linkS4class{PCAIDS}}, distance 2.
+  Class \code{\linkS4class{Linear}}, by class \code{\linkS4class{AIDS}}, distance 3.
+  Class \code{\linkS4class{Bertrand}}, by class \code{\linkS4class{Linear}}, distance 4.
+  Class \code{\linkS4class{Antitrust}}, by class \code{\linkS4class{Bertrand}}, distance 5.
 }
 \section{Methods}{
 
@@ -50,6 +52,7 @@ Objects can be created by using the constructor \code{\link{pcaids.nests}}.
 
 
 \examples{
-showClass("PCAIDSNests")
+showClass("PCAIDSNests")           # get a detailed description of the class
+showMethods(classes="PCAIDSNests") # show all methods defined for the class
 }
 \keyword{classes}

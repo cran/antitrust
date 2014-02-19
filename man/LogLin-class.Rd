@@ -7,9 +7,9 @@
 %\alias{calcSlopes,LogLin-method}
 
 
-\title{Class "LogLin"}
+\title{Class \dQuote{LogLin}}
 \description{
-  The "LogLin" class contains all the information needed to
+  The \dQuote{LogLin} class contains all the information needed to
   calibrate a Log-Linear
   demand system and perform a merger analysis under the assumption that
   firms are playing a differentiated Bertrand products pricing game.
@@ -28,10 +28,11 @@ Objects can be created by using the constructor function \code{\link{loglin}}.
 }
 \section{Extends}{
 Class \code{\linkS4class{Linear}}, directly.
-Class \code{\linkS4class{Bertrand}}, by class "Linear", distance 2.
+Class \code{\linkS4class{Bertrand}}, by class \code{\linkS4class{Linear}}, distance 2.
+Class \code{\linkS4class{Antitrust}}, by class \code{\linkS4class{Bertrand}}, distance 3.
 }
 \section{Methods}{
-  For all of methods containing the `preMerger' argument, `preMerger' takes
+  For all of methods containing the \sQuote{preMerger}  argument, \sQuote{preMerger} takes
   on a value of TRUE or FALSE, where TRUE invokes the method using the
   pre-merger ownership structure, while FALSE invokes the method using
   the post-merger ownership structure.
@@ -58,6 +59,7 @@ Class \code{\linkS4class{Bertrand}}, by class "Linear", distance 2.
 \author{Charles Taragin \email{charles.taragin@usdoj.gov}}
 
 \examples{
-showClass("LogLin")
+showClass("LogLin")           # get a detailed description of the class
+showMethods(classes="LogLin") # show all methods defined for the class
 }
 \keyword{classes}

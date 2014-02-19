@@ -8,9 +8,9 @@
 %%\alias{CV,LogitNests-method}
 %%\alias{elast,LogitNests-method}
 
-\title{Class "LogitNests"}
+\title{Class \dQuote{LogitNests}}
 \description{
-  The "LogitNests" class contains all the information needed to
+  The \dQuote{LogitNests} class contains all the information needed to
   calibrate a nested Logit
   demand system and perform a merger analysis under the assumption that
   firms are playing a differentiated products Bertrand pricing game.
@@ -34,10 +34,10 @@ Objects can be created by using the constructor function \code{\link{logit.nests
 }
 \section{Extends}{
 Class \code{\linkS4class{Logit}}, directly.
-Class \code{\linkS4class{Bertrand}}, by class "Logit", distance 2.
+Class \code{\linkS4class{Bertrand}}, by class \code{\linkS4class{Logit}}, distance 2.
 }
 \section{Methods}{
-    For all of methods containing the `preMerger' argument, `preMerger' takes
+    For all of methods containing the \sQuote{preMerger} argument, \sQuote{preMerger} takes
   on a value of TRUE or FALSE, where TRUE invokes the method using the
   pre-merger ownership structure, while FALSE invokes the method using
   the post-merger ownership structure.
@@ -45,7 +45,7 @@ Class \code{\linkS4class{Bertrand}}, by class "Logit", distance 2.
     \item{\code{calcShares}}{\code{signature(object, preMerger
 	 = TRUE,revenue = FALSE)}}{ Compute either pre-merger or post-merger equilibrium
        shares under the assumptions that consumer demand is Logit and firms play a differentiated product
-       Bertrand Nash pricing game. `revenue' takes
+       Bertrand Nash pricing game. \sQuote{revenue} takes
        on a value of TRUE or FALSE, where TRUE calculates revenue shares,
        while FALSE calculates quantity shares.}
      \item{\code{calcSlopes}}{\code{signature(object)}}{ Uncover nested Logit demand
@@ -63,6 +63,7 @@ Class \code{\linkS4class{Bertrand}}, by class "Logit", distance 2.
 \author{Charles Taragin \email{charles.taragin@usdoj.gov}}
 
 \examples{
-showClass("LogitNests")
+showClass("LogitNests")           # get a detailed description of the class
+showMethods(classes="LogitNests") # show all methods defined for the class
 }
 \keyword{classes}

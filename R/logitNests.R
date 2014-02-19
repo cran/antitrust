@@ -20,43 +20,30 @@ setClass(
 
              nprods    <- length(object@prices)
              nNestParm <- nlevels(object@nests) #calculate the number of nesting parameters
-             nMargins  <- length(object@margins[!is.na(object@margins)])
-             maxNests  <- nMargins - 1
 
              ## Identify Singleton Nests
              nestCnt   <- tapply(object@prices,object@nests,length)
              nestCnt   <- nestCnt[object@nests]
              isSingleton <- nestCnt==1
 
-             if(nNestParm==1) stop("'logit.nests' cannot be used for non-nested problems. Use 'logit' instead")
+             nNestParm <- nNestParm - sum(isSingleton) #singleton nests are not identified
+
+             if(identical(nNestParm,1)) stop("'logit.nests', 'logit.nests.alm' may not be used for non-nested problems or problems with only singleton nests. Use 'logit', 'logit.alm' instead")
 
              if(nprods != length(object@nests)){
                  stop("'nests' length must equal the number of products")}
 
-
-             if(object@constraint && length(object@parmsStart)!=2){
-                 stop("when 'constraint' is TRUE, 'parmsStart' must be a vector of length 2")
-                 }
-             else if(!object@constraint && nNestParm + 1 != length(object@parmsStart)){
-                 stop("when 'constraint' is FALSE, 'parmsStart' must be a vector of length ",nNestParm + 1)
-             }
 
 
              if(!object@constraint &&
                 any(tapply(object@margins[!isSingleton],object@nests[!isSingleton],
                            function(x){if(all(is.na(x))){return(TRUE)} else{return(FALSE)}}
                            )
-                    )
+                    ,na.rm=TRUE)
                 ){
                  stop("when 'constraint' is FALSE, at least one product margin must be supplied for each non-singleton nest")
              }
 
-             if(nNestParm > nMargins){
-                 stop(paste(
-                            "Impossible to calibrate nest parameters with the number of margins supplied.\n",
-                            "The maximum number of nests supported by the supplied margin information is"
-                            ,maxNests))
-             }
 
 
              return(TRUE)
@@ -75,9 +62,15 @@ setMethod(
 
               ownerPre     <-  object@ownerPre
               shares       <-  object@shares
+              nprods      <-   length(shares)
 
               margins      <-  object@margins
-              naMargins    <- !is.na(object@margins)
+
+              ## identify which products have enough margin information
+              ##  to impute Bertrand margins
+              isMargin    <- matrix(margins,nrow=nprods,ncol=nprods,byrow=TRUE)
+              isMargin[ownerPre==0]=0
+              isMargin    <- !is.na(rowSums(isMargin))
 
               prices       <-  object@prices
               idx          <-  object@normIndex
@@ -105,7 +98,7 @@ Normalizing these parameters to 1.")
                ## Uncover price coefficient and mean valuation from margins and revenue shares
 
 
-              nprods <- length(shares)
+
 
               sharesNests <- tapply(shares,nests,sum)[nests]
 
@@ -113,24 +106,6 @@ Normalizing these parameters to 1.")
 
               revenues <- prices * shares
 
-
-              ## create index variables, contingent on whether an outside good is defined
-              if(is.na(idx)){
-                  idxShare <- 1 - object@shareInside
-                  idxShareIn <- 1
-                  idxPrice   <- 0
-
-
-              }
-
-              else{
-
-
-                  idxShare   <- shares[idx]
-                  idxShareIn <- sharesNests[idx]
-                  idxPrice   <- prices[idx]
-
-               }
 
 
 
@@ -142,7 +117,7 @@ Normalizing these parameters to 1.")
                   sigma <- as.numeric(isSingletonNest)
                   sigma[!isSingletonNest] <- theta[-1]
 
-                  ## The following returns the elasticity TRANSPOSED
+                  ## The following returns the transpose of the elasticity matrix
                   elasticity <- diag((1/sigma-1)*alpha)
                   elasticity <- elasticity[nests,nests]
                   elasticity <- elasticity * matrix(sharesNests*prices,ncol=nprods,nrow=nprods)
@@ -151,15 +126,16 @@ Normalizing these parameters to 1.")
 
 
 
-                  #marginsCand <- -1 * as.vector(solve(elasticity * ownerPre) %*% revenues) / revenues
-                  #marginsCand[is.nan(marginsCand)] <- 1e30
+                  elasticity <- elasticity[isMargin,isMargin]
+                  revenues   <- revenues[isMargin]
+                  ownerPre   <- ownerPre[isMargin,isMargin]
+                  margins    <- margins[isMargin]
 
-                  #measure <- sum((margins[naMargins] - marginsCand[naMargins])^2)
+                  #marginsCand <- -1 * as.vector(ginv(elasticity * ownerPre) %*% (revenues * diag(ownerPre))) / revenues
+                  #measure <- sum((margins - marginsCand)^2,na.rm=TRUE)
 
-                  measure <- revenues + as.vector((elasticity * ownerPre) %*% (margins * revenues))
-                  #measure[is.nan(measure)] <- 1e30
-
-                  measure <- sum(measure[naMargins]^2,na.rm=TRUE)
+                  measure <- revenues * diag(ownerPre) + as.vector((elasticity * ownerPre) %*% (margins * revenues))
+                  measure <- sum(measure^2,na.rm=TRUE)
 
                   return(measure)
               }
@@ -193,18 +169,31 @@ Normalizing these parameters to 1.")
               names(minSigmaOut) <- levels(nests)
 
 
-              ##normalize outside good nesting parameter to 1
+                ## create index variables, contingent on whether an outside good is defined
               if(is.na(idx)){
-                  idxSigma   <- minSigma[idx]
+                  idxShare <- 1 - object@shareInside
+                  idxShareIn <- 1
+                  idxPrice   <- object@priceOutside
+                  idxSigma   <- 1
+
               }
-              else{idxSigma <- 1}
+
+              else{
+
+
+                  idxShare   <- shares[idx]
+                  idxShareIn <- sharesNests[idx]
+                  idxPrice   <- prices[idx]
+                  idxSigma   <- minSigma[idx]
+
+               }
 
 
               meanval <-
                   log(shares) - log(idxShare) -
-                      minAlpha*(prices - idxPrice) +
-                          (minSigma-1)*log(sharesNests) -
-                              (idxSigma-1)*log(idxShareIn)
+                      minAlpha*(prices - idxPrice) -
+                          (1-minSigma)*log(sharesNests) +
+                              (1-idxSigma)*log(idxShareIn)
 
               names(meanval)   <- object@labels
 
@@ -227,20 +216,21 @@ setMethod(
      sigma     <- object@slopes$sigma
      meanval   <- object@slopes$meanval
      isOutside <- as.numeric(object@shareInside < 1)
+     outVal    <- ifelse(object@shareInside<1, exp(alpha*object@priceOutside), 0)
 
      sharesIn     <- exp((meanval+alpha*prices)/sigma[nests])
 
-     inclusiveValue <- log(tapply(sharesIn,nests,sum))
+     inclusiveValue <- log(tapply(sharesIn,nests,sum,na.rm=TRUE))
      sharesAcross <-   exp(sigma*inclusiveValue)
-     sharesAcross <- sharesAcross/(isOutside + sum(sharesAcross))
+     sharesAcross <- sharesAcross/(outVal + sum(sharesAcross,na.rm=TRUE))
 
 
-     sharesIn     <- sharesIn/(isOutside + sum(sharesIn))
+     sharesIn     <- sharesIn/exp(inclusiveValue)[nests]
 
 
      shares       <- sharesIn * sharesAcross[nests]
 
-     if(revenue){shares <- prices*shares/sum(prices*shares,1-sum(shares))}
+     if(revenue){shares <- prices*shares/sum(prices*shares,object@priceOutside*(1-sum(shares,na.rm=TRUE)),na.rm=TRUE)}
 
      names(shares) <- object@labels
 
@@ -275,7 +265,8 @@ setMethod(
 
      else{
 
-         sharesNests <- shares/tapply(shares,nests,sum)[nests]
+         sharesNests <- shares/tapply(shares,nests,sum,na.rm=TRUE)[nests]
+
 
 
          nprods <-  length(shares)
@@ -310,8 +301,8 @@ setMethod(
 
 
 
-              VPre  <- sum( tapply(exp((meanval + object@pricePre*alpha)  / sigma[nests]),nests,sum) ^ sigma )
-              VPost <- sum( tapply(exp((meanval + object@pricePost*alpha) / sigma[nests]),nests,sum) ^ sigma )
+              VPre  <- sum( tapply(exp((meanval + object@pricePre*alpha)  / sigma[nests]),nests,sum,na.rm=TRUE) ^ sigma )
+              VPost <- sum( tapply(exp((meanval + object@pricePost*alpha) / sigma[nests]),nests,sum,na.rm=TRUE) ^ sigma )
 
 
 
@@ -328,6 +319,8 @@ logit.nests <- function(prices,shares,margins,
                         nests=rep(1,length(shares)),
                         normIndex=ifelse(sum(shares) < 1,NA,1),
                         mcDelta=rep(0,length(prices)),
+                        subset=rep(TRUE,length(prices)),
+                        priceOutside=0,
                         priceStart = prices,
                         isMax=FALSE,
                         constraint = TRUE,
@@ -337,9 +330,15 @@ logit.nests <- function(prices,shares,margins,
                         ){
 
 
-    if(is.factor(nests)){nests <- nests[,drop=TRUE] }
-    else{nests <- factor(nests)}
+    nests <- factor(nests,levels = unique(nests)) # factor nests, keeping levels in the order in which they appear
+    nNestParm <- sum(tapply(nests,nests,length)>1) # count the number of  non-singleton nests
+    nMargins  <- length(margins[!is.na(margins)])
+    maxNests  <- nMargins - 1
 
+
+     if(nNestParm > maxNests){
+                 stop("Additional margins must be supplied in order to calibrate nesting parameters")
+             }
 
     if(missing(parmsStart)){
 
@@ -350,9 +349,21 @@ logit.nests <- function(prices,shares,margins,
         if(constraint){parmsStart <- parmsStart[1:2]}
                    }
 
+
+    if(constraint && length(parmsStart)!=2){
+        stop("when 'constraint' is TRUE, 'parmsStart' must be a vector of length 2")
+    }
+    else if(!constraint && nNestParm + 1 != length(parmsStart)){
+        stop("when 'constraint' is FALSE, 'parmsStart' must be a vector of length ",nNestParm + 1)
+
+    }
+
+
     ## Create LogitNests  container to store relevant data
     result <- new("LogitNests",prices=prices, margins=margins,
                   shares=shares,mcDelta=mcDelta,
+                  subset=subset,
+                  priceOutside=priceOutside,
                   ownerPre=ownerPre,
                   ownerPost=ownerPost,
                   nests=nests,
@@ -370,9 +381,14 @@ logit.nests <- function(prices,shares,margins,
     ## Calculate Demand Slope Coefficients
     result <- calcSlopes(result)
 
+    ## Calculate marginal cost
+    result@mcPre <-  calcMC(result,TRUE)
+    result@mcPost <- calcMC(result,FALSE)
+
+
     ## Solve Non-Linear System for Price Changes
     result@pricePre  <- calcPrices(result,preMerger=TRUE,isMax=isMax,...)
-    result@pricePost <- calcPrices(result,preMerger=FALSE,isMax=isMax,...)
+    result@pricePost <- calcPrices(result,preMerger=FALSE,isMax=isMax,subset=subset,...)
 
 
     return(result)

@@ -13,6 +13,8 @@
                 shareInside = 1,
                 normIndex=ifelse(sum(shares)<1,NA,1),
                 mcDelta=rep(0,length(prices)),
+                subset=rep(TRUE, length(prices)),
+                priceOutside = 1,
                 priceStart = prices,
                 isMax=FALSE,
                 labels=paste("Prod",1:length(prices),sep=""),
@@ -25,6 +27,8 @@ ces.nests(prices,shares,margins,
                 shareInside = 1,
                 normIndex=ifelse(sum(shares)<1,NA,1),
                 mcDelta=rep(0,length(prices)),
+                subset=rep(TRUE, length(prices)),
+                priceOutside = 1,
                 priceStart = prices,
                 isMax=FALSE,
                 constraint = TRUE,
@@ -50,7 +54,7 @@ ces.nests(prices,shares,margins,
     indicate which firm produced a product after the merger OR
     a k x k matrix of post-merger ownership shares.}
   \item{shareInside}{The proportion that a typical consumer spends on
-     all products included in the `prices' vector. Only needed to calculate
+     all products included in the \sQuote{prices} vector. Only needed to calculate
      compensating variation.
      Default is 1, meaning that all of a consumer's
      income is spent on products within the market.}
@@ -60,11 +64,18 @@ ces.nests(prices,shares,margins,
     proportional change in a product's marginal costs due to
     the merger. Default is 0, which assumes that the merger does not
     affect any products' marginal cost.}
+   \item{subset}{A vector of length k where each element equals TRUE if
+     the product indexed by that element should be included in the
+     post-merger simulation and FALSE if it should be excluded.Default is a
+     length k vector of TRUE.}
    \item{constraint}{if TRUE, then the nesting parameters for all
      non-singleton nests are assumed equal. If FALSE, then each
-     non-singleton nest is permitted to have its own value. Default is TRUE.}
+     non-singleton nest is permitted to have its own value. Default is
+     TRUE.}
+   \item{priceOutside}{A length 1 vector indicating the price of the
+     outside good. Default is 1.}
   \item{priceStart}{A length k vector of starting values used to solve for
-    equilibrium price. Default is the `prices' vector.}
+    equilibrium price. Default is the \sQuote{prices} vector.}
   \item{isMax}{If TRUE, checks to see whether computed price equilibrium
     locally maximizes firm profits and returns a warning if not. Default is FALSE.}
   \item{parmsStart}{A vector of starting values used to solve for
@@ -74,8 +85,8 @@ ces.nests(prices,shares,margins,
     greater than the price coefficient. If missing then the random
     draws with the appropriate restrictions are employed.}
   \item{labels}{A k-length vector of labels. Default is "Prod#", where
-    `#' is a number between 1 and the length of `prices'.}
-  \item{...}{Additional options to feed to the \code{\link[nleqslv]{nleqslv}}
+    \sQuote{#} is a number between 1 and the length of \sQuote{prices}.}
+  \item{...}{Additional options to feed to the \code{\link[BB]{BBsolve}}
     optimizer used to solve for equilibrium prices}
 
 }
@@ -90,7 +101,7 @@ ces.nests(prices,shares,margins,
   assumption that that all firms in the market are playing a
   differentiated products Bertrand pricing game.
 
-  \code{ces.nests} is identical to \code{ces} except that it includes the `nests'
+  \code{ces.nests} is identical to \code{ces} except that it includes the \sQuote{nests}
   argument which may be used to assign products to different
   nests. Nests are useful because they allow for richer substitution
   patterns between products. Products within the same nest are assumed
@@ -103,13 +114,13 @@ ces.nests(prices,shares,margins,
   by the user.
 
   By default, all non-singleton nests are assumed to have a common value for sigma.
-  This constraint may be relaxed  by setting `constraint' to
+  This constraint may be relaxed  by setting \sQuote{constraint} to
   FALSE. In this case, at least one product margin must be supplied from
   a product within each nest.
 
   In both  \code{ces} and  \code{ces.nests}, if revenue shares sum to 1,
   then one product's mean value is not identified and must be normalized
-  to 1. `normIndex' may be used to specify the index (position) of the
+  to 1. \sQuote{normIndex} may be used to specify the index (position) of the
   product whose mean value is to be normalized. If the sum of revenue shares
   is less than 1, both of these functions assume that the exists a k+1st
   product in the market whose price and mean value are both normalized
@@ -139,11 +150,11 @@ The MIT Press, Cambridge, Mass.
 
 
 Epstein, Roy and Rubinfeld, Daniel (2004).
-``Effects of Mergers Involving Differentiated Products.''
+\dQuote{Effects of Mergers Involving Differentiated Products.}
 
 Sheu G (2011).
-``Price, Quality, and Variety: Measuring the Gains From Trade in Differentiated
-Products.''
+\dQuote{Price, Quality, and Variety: Measuring the Gains From Trade in Differentiated
+  Products.}
 U.S Department of Justice.
 }
 
@@ -195,6 +206,19 @@ CV(result.ces,1e9)          #calculate compensating variation in dollars
 ## for BUD and OLD STYLE using a 5\% SSNIP
 
 HypoMonTest(result.ces,prodIndex=1:2)
+
+
+## Get a detailed description of the 'CES' class slots
+showClass("CES")
+
+## Show all methods attached to the 'CES' Class
+showMethods(classes="CES")
+
+## Show which class have their own 'elast' method
+showMethods("elast")
+
+## Show the method definition for 'elast' and Class 'CES'
+getMethod("elast","CES")
 
 
 

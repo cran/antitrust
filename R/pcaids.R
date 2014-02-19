@@ -18,11 +18,10 @@ setClass(
                  stop("'knownElastIndex' value must be between 1 and the length of 'shares'")}
              if(nprods != length(object@mcDelta)){
                  stop("'mcDelta' must have the same length as 'shares'")}
-             if(object@knownElast>0 || object@mktElast > -1 ){
-                 stop("All elasticities must be negative. 'mktElast' must be less than -1")}
-             if(object@knownElast > object@mktElast){
-                 stop("'mktElast' must be greater than 'knownElast'")}
-
+             if(object@knownElast>0 || object@mktElast > 0 ){
+                 stop("'mktElast', 'knownElast' must be non-positive")}
+             if(abs(object@knownElast) < abs(object@mktElast) ){
+                  stop("'mktElast' must be less  than 'knownElast' in absolute value")}
          }
 
          )
@@ -60,7 +59,7 @@ setMethod(
 
      dimnames(B) <- list(labels,labels)
      object@slopes <- B
-     object@intercepts <- as.vector(shares - B%*%object@prices)
+     object@intercepts <- as.vector(shares - B%*%log(object@prices))
      names(object@intercepts) <- object@labels
 
      return(object)
@@ -81,6 +80,7 @@ pcaids <- function(shares,knownElast,mktElast=-1,
                    ownerPre,ownerPost,
                    knownElastIndex=1,
                    mcDelta=rep(0, length(shares)),
+                   subset=rep(TRUE, length(shares)),
                    priceStart=runif(length(shares)),
                    isMax=FALSE,
                    labels=paste("Prod",1:length(shares),sep=""),
@@ -88,7 +88,7 @@ pcaids <- function(shares,knownElast,mktElast=-1,
 
 
 
-    if(missing(prices)){ prices <- rep(NA,length(shares))}
+    if(missing(prices)){ prices <- rep(NA_real_,length(shares))}
 
     if(missing(diversions)){
         diversions <- tcrossprod(1/(1-shares),shares)
@@ -98,6 +98,7 @@ pcaids <- function(shares,knownElast,mktElast=-1,
   ## Create PCAIDS container to store relevant data
     result <- new("PCAIDS",shares=shares,prices=prices,
                    quantities=shares, margins=shares,mcDelta=mcDelta,
+                  subset=subset,
                   knownElast=knownElast,mktElast=mktElast,
                   ownerPre=ownerPre,ownerPost=ownerPost,
                   knownElastIndex=knownElastIndex,
@@ -112,7 +113,7 @@ pcaids <- function(shares,knownElast,mktElast=-1,
     result <- calcSlopes(result)
 
     ## Solve Non-Linear System for Price Changes
-    result@priceDelta <- calcPriceDelta(result,isMax=isMax,...)
+    result@priceDelta <- calcPriceDelta(result,isMax=isMax,subset=subset,...)
 
 
     ## Calculate Pre and Post merger equilibrium prices

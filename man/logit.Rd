@@ -1,6 +1,7 @@
 \name{logit}
 \alias{logit}
 \alias{logit.nests}
+\alias{logit.nests.alm}
 \alias{logit.cap}
 \alias{logit.alm}
 \title{(Nested) Logit Demand Calibration and Merger Simulation}
@@ -14,6 +15,8 @@ logit(prices,shares,margins,
                 ownerPre,ownerPost,
                 normIndex=ifelse(sum(shares)<1,NA,1),
                 mcDelta=rep(0,length(prices)),
+                subset=rep(TRUE, length(prices)),
+                priceOutside = 0,
                 priceStart = prices,
                 isMax=FALSE,
                 labels=paste("Prod",1:length(prices),sep=""),
@@ -22,6 +25,8 @@ logit(prices,shares,margins,
 logit.alm(prices,shares,margins,
                 ownerPre,ownerPost,
                 mcDelta=rep(0,length(prices)),
+                subset=rep(TRUE, length(prices)),
+                priceOutside = 0,
                 priceStart = prices,
                 isMax=FALSE,
                 parmsStart,
@@ -34,6 +39,22 @@ logit.nests(prices,shares,margins,
                 nests=rep(1,length(shares)),
                 normIndex=ifelse(sum(shares) < 1,NA,1),
                 mcDelta=rep(0,length(prices)),
+                subset=rep(TRUE, length(prices)),
+                priceOutside = 0,
+                priceStart = prices,
+                isMax=FALSE,
+                constraint = TRUE,
+                parmsStart,
+                labels=paste("Prod",1:length(prices),sep=""),
+                ...
+                )
+
+logit.nests.alm(prices,shares,margins,
+                ownerPre,ownerPost,
+                nests=rep(1,length(shares)),
+                mcDelta=rep(0,length(prices)),
+                subset=rep(TRUE, length(prices)),
+                priceOutside = 0,
                 priceStart = prices,
                 isMax=FALSE,
                 constraint = TRUE,
@@ -48,6 +69,8 @@ logit.cap(prices,shares,margins,
                 mktSize,
                 normIndex=ifelse(sum(shares)<1,NA,1),
                 mcDelta=rep(0,length(prices)),
+                subset=rep(TRUE, length(prices)),
+                priceOutside = 0,
                 priceStart = prices,
                 isMax=FALSE,
                 labels=paste("Prod",1:length(prices),sep=""),
@@ -73,7 +96,7 @@ logit.cap(prices,shares,margins,
     individuals who chose that option.}
   \item{normIndex}{An integer equalling the index (position) of the
     inside product whose mean valuation will be normalized to 1. Default
-    is 1, unless `shares' sum to less than 1, in which case the default is
+    is 1, unless \sQuote{shares} sum to less than 1, in which case the default is
     NA and an outside good is assumed to exist.}
   \item{ownerPre}{EITHER a vector of length k whose values
     indicate which firm produced a product pre-merger OR
@@ -85,11 +108,18 @@ logit.cap(prices,shares,margins,
     proportional change in a product's marginal costs due to
     the merger. Default is 0, which assumes that the merger does not
     affect any products' marginal cost.}
+  \item{subset}{A vector of length k where each element equals TRUE if
+     the product indexed by that element should be included in the
+     post-merger simulation and FALSE if it should be excluded.Default is a
+     length k vector of TRUE.}
   \item{constraint}{if TRUE, then the nesting parameters for all
     non-singleton nests are assumed equal. If FALSE, then each
-    non-singleton nest is permitted to have its own value. Default is TRUE.}
+    non-singleton nest is permitted to have its own value. Default is
+    TRUE.}
+  \item{priceOutside}{A length 1 vector indicating the price of the
+    outside good. Default is 0.}
   \item{priceStart}{A length k vector of starting values used to solve for
-    equilibrium price. Default is the `prices' vector.}
+    equilibrium price. Default is the \sQuote{prices} vector.}
   \item{isMax}{If TRUE, checks to see whether computed price equilibrium
     locally maximizes firm profits and returns a warning if not. Default is FALSE.}
   \item{parmsStart}{A vector of starting values used to solve for
@@ -99,8 +129,8 @@ logit.cap(prices,shares,margins,
     greater than the price coefficient. If missing then the random
     draws with the appropriate restrictions are employed.}
   \item{labels}{A k-length vector of labels. Default is "Prod#", where
-    `#' is a number between 1 and the length of `prices'.}
-  \item{...}{Additional options to feed to the \code{\link[nleqslv]{nleqslv}}
+    \sQuote{#} is a number between 1 and the length of \sQuote{prices}.}
+  \item{...}{Additional options to feed to the \code{\link[BB]{BBsolve}}
     optimizer used to solve for equilibrium prices.}
 
 }
@@ -114,10 +144,10 @@ logit.cap(prices,shares,margins,
   calibrated parameters to simulate a merger between two firms.
 
   \code{logit.alm} is identical to \code{logit} except that it assumes
-  that an outside product is included and uses additional margin
+  that an outside product exists and uses additional margin
   information to estimate the share of the outside good.
 
-  \code{logit.nests} is identical to \code{logit} except that it includes the `nests'
+  \code{logit.nests} is identical to \code{logit} except that it includes the \sQuote{nests}
   argument which may be used to assign products to different
   nests. Nests are useful because they allow for richer substitution
   patterns between products. Products within the same nest are assumed
@@ -130,21 +160,24 @@ logit.cap(prices,shares,margins,
   by the user.
 
   By default, all non-singleton nests are assumed to have a common value for sigma.
-  This constraint may be relaxed  by setting `constraint' to
+  This constraint may be relaxed  by setting \sQuote{constraint} to
   FALSE. In this case, at least one product margin must be supplied from
   a product within each nest.
 
+  \code{logit.nests.alm} is identical to \code{logit.nests} except that it assumes
+   that an outside product exists  and uses additional margin
+   information to estimate the share of the outside good.
 
   \code{logit.cap} is identical to  \code{logit}  except that firms are
   playing the Bertrand pricing game under exogenously supplied capacity
   constraints. Unlike \code{logit},  \code{logit.cap} requires users to
-  specify capacity constraints via `capacities' and  the number of
-  potential customers in a market via `mktSize'. `mktSize' is needed to
-  transform `shares' into quantities that must be directly compared to `capacities'.
+  specify capacity constraints via \sQuote{capacities} and  the number of
+  potential customers in a market via \sQuote{mktSize}. \sQuote{mktSize} is needed to
+  transform \sQuote{shares} into quantities that must be directly compared to \sQuote{capacities}.
 
   In \code{logit}, \code{logit.nests} and \code{logit.cap},  if quantity shares sum to 1,
   then one product's mean value is not identified and must be normalized
-  to 0. `normIndex' may be used to specify the index (position) of the
+  to 0. \sQuote{normIndex} may be used to specify the index (position) of the
   product whose mean value is to be normalized. If the sum of revenue shares
   is less than 1, both of these functions assume that the exists a k+1st
   product in the market whose price and mean value are both normalized
@@ -178,20 +211,20 @@ The MIT Press, Cambridge, Mass.
 
 
 Epstein, Roy and Rubinfeld, Daniel (2004).
-``Effects of Mergers Involving Differentiated Products.''
+\dQuote{Effects of Mergers Involving Differentiated Products.}
 
 Werden, Gregory and Froeb, Luke (1994).
-``The Effects of Mergers in
+\dQuote{The Effects of Mergers in
 Differentiated Products Industries: Structural Merger Policy and the
-Logit Model'',
+Logit Model},
 \emph{Journal of Law, Economics, \& Organization}, \bold{10}, pp. 407-426.
 
 Froeb, Luke, Tschantz, Steven  and Phillip Crooke (2003).
-``Bertrand Competition and Capacity Constraints: Mergers Among Parking Lots'',
+\dQuote{Bertrand Competition and Capacity Constraints: Mergers Among Parking Lots},
 \emph{Journal of Econometrics}, \bold{113}, pp. 49-67.
 
 Froeb, Luke and Werden, Greg (1996).
-``Computational Economics and Finance: Modeling and Analysis with Mathematica, Volume 2.''
+\dQuote{Computational Economics and Finance: Modeling and Analysis with Mathematica, Volume 2.}
 In Varian H (ed.), chapter Simulating Mergers among Noncooperative Oligopolists, pp. 177-95.
 Springer-Verlag, New York.
 }
@@ -239,12 +272,26 @@ upp(result.logit)            #calculate Upwards Pricing Pressure Index
 
 CV(result.logit)              #calculate representative agent compensating variation
 
-## Construct a matrix containing all candidate product markets satisfying a 5\% SSNIP
 
 ## Implement the Hypothetical Monopolist Test
 ## for BUD and OLD STYLE using a 5\% SSNIP
 
 HypoMonTest(result.logit,prodIndex=1:2)
+
+
+
+## Get a detailed description of the 'Logit' class slots
+showClass("Logit")
+
+## Show all methods attached to the 'Logit' Class
+showMethods(classes="Logit")
+
+## Show which classes have their own 'elast' method
+showMethods("elast")
+
+## Show the method definition for 'elast' and Class 'Logit'
+getMethod("elast","Logit")
+
 
 
 #
@@ -253,7 +300,9 @@ HypoMonTest(result.logit,prodIndex=1:2)
 
 mktSize <- 1000
 cap     <- c(66,200,300,200,99,300) # BUD and OTHER-LITE are capacity constrained
-result.cap <- logit.cap(price,shares,margins,capacities=cap,mktSize=mktSize,ownerPre=ownerPre,ownerPost=ownerPost,labels=prodNames)
+result.cap <- logit.cap(price,shares,margins,capacities=cap,
+                        mktSize=mktSize,ownerPre=ownerPre,
+                        ownerPost=ownerPost,labels=prodNames)
 print(result.cap)
 
 }

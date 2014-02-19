@@ -5,15 +5,10 @@
 \label{tab:functionsum}
 \begin{tabular}{llccccll}
   \hline
-Name & Demand& Price & Margin & Diversion & Quantity/ & Capacity& Cite \\
+Name & Model& Price & Margin & Diversion & Quantity/ & Capacity& Cite \\
 & & & & & Share & \\
   \hline\hline
-  \verb@cmcr.bertrand@ & any                              & M & M & M &                     &  & \cite{Werden1996} \\
-  \verb@cmcr.cournot@           & any                              &  & 1 &  &M                     & & \cite{Froeb1998} \\
-  \verb@upp.bertrand@ & any                              & M & M & M & &
-  &   \cite{Farrell2010a} \\
-& & & & &  & & \cite{Jaffe2012} \\
-  \verb@HHI@           & any                              &  &  &  & A                     &&  \cite{Salop2000} \\\hline
+  \multicolumn{8}{c}{Bertrand} \\ \hline
   \verb@linear@ & Linear                         & A & 1+ & O & A && \cite{Haefen2002} \\
    \verb@loglin@ & Log-linear & A & A & O & A &&
    \cite{Haefen2002} \\
@@ -36,7 +31,19 @@ Name & Demand& Price & Margin & Diversion & Quantity/ & Capacity& Cite \\
    \verb@ces.nests@ & Nested Constant Elasticity       & A & 2+ &               & A && \cite{Sheu2011} \\
    \hline
    \verb@sim@ &             & A & &               &  && \\
-   \hline
+   \hline\hline
+   \multicolumn{8}{c}{Auctions} \\\hline
+   \verb@auction2nd.cap@ &    2nd price, single unit     & 1+ & 1+ &  &
+   & A & \cite{WaehrP2003} \\
+   \hline\hline
+   \multicolumn{8}{c}{Other Tools} \\ \hline
+  \verb@cmcr.bertrand@ & any                              & M & M & M &                     &  & \cite{Werden1996} \\
+  \verb@cmcr.cournot@           & any                              &  & 1 &  &M                     & & \cite{Froeb1998} \\
+  \verb@upp.bertrand@ & any                              & M & M & M & &
+  &   \cite{Farrell2010a} \\
+& & & & &  & & \cite{Jaffe2012} \\
+  \verb@HHI@           & any                              &  &  &  & A
+  &&  \cite{Salop2000} \\\hline
  \end{tabular}
 \end{center}
 `M': data on merging parties' products,\\
@@ -48,8 +55,7 @@ Name & Demand& Price & Margin & Diversion & Quantity/ & Capacity& Cite \\
 \begin{table}
 \small
 \begin{center}
-  \caption{Selected \atr{} methods}
-\label{tab:atrmethods}
+
 \begin{tabular}{r|l}
 Name & Description \\ \hline\hline
 
@@ -60,6 +66,9 @@ Name & Description \\ \hline\hline
 \verb@calcPrices@ & Compute pre- and post-merger equilibrium prices\\
 \verb@calcPriceDelta@ & Compute \emph{proportional} change in
 equilibrium prices\\
+\verb@calcProducerSurplus@ & Compute pre- and post-merger producer surplus\\
+\verb@calcProducerSurplusGrimTrigger@ & Compare pre- and post-merger surplus from
+colluding to surplus from defecting \\
 \verb@calcShares@ &Compute pre- and post-merger equilibrium shares\\
 \verb@cmcr@& Compute compensating marginal cost reduction (CMCR)\\
 \verb@HypoMonTest@& Use the Hypothetical Monopolist Test to \\
@@ -68,10 +77,15 @@ equilibrium prices\\
 \verb@diversionHypoMon@& Compute the diversion matrix under a
 Hypothetical Monopolist Test \\
 \verb@elast@ & Compute pre- and post-merger elasticity matrices\\
-\verb@hhi@ & Compute HHI using pre- and post-merger equilbrium
+\verb@hhi@ & Compute HHI using pre- and post-merger equilibrium
 shares\\
 \verb@upp@ & Compute net Upwards Pricing Pressure (UPP)\\
+\verb@plot@ & Plot pre- and post-merger demand, marginal costs, and equilibria \\
 \verb@summary@ & Summarize result\\\hline
 \end{tabular}
+ \caption{Selected \atr{} methods. While all of the above methods are
+   defined for the Bertrand Class and its child classes, not all of
+   these methods are currently defined for the Auction2ndCap class.}
+\label{tab:atrmethods}
 \end{center}
 \end{table}

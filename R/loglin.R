@@ -28,6 +28,7 @@ setMethod(
      margins <- object@margins
      quantities <- object@quantities
      prices <- object@prices
+     ownerPre <- object@ownerPre
 
      revenues <- prices * quantities
 
@@ -36,7 +37,8 @@ setMethod(
      diversion <- object@diversion * tcrossprod(quantities,1/quantities)
 
      slopes <- matrix(margins * revenues,ncol=nprods, nrow=nprods,byrow=TRUE)
-     slopes <- revenues / rowSums(slopes * diversion * object@ownerPre)
+
+     slopes <- (revenues * diag(ownerPre)) / rowSums(slopes * diversion * ownerPre)
      slopes <- -t(slopes * diversion)
 
      dimnames(slopes) <- list(object@labels,object@labels)
@@ -57,11 +59,24 @@ setMethod(
 setMethod(
  f= "calcPrices",
  signature= "LogLin",
- definition=function(object,preMerger=TRUE,...){
+ definition=function(object,preMerger=TRUE,subset,...){
 
-     if(preMerger){owner <- object@ownerPre}
-     else{owner <- object@ownerPost}
-     mc <- calcMC(object,preMerger)
+     if(preMerger){
+       owner <- object@ownerPre
+       mc    <- object@mcPre
+     }
+     else{
+       owner <- object@ownerPost
+       mc    <- object@mcPost
+     }
+
+     nprods <- length(object@quantities)
+     if(missing(subset)){
+        subset <- rep(TRUE,nprods)
+     }
+
+     if(!is.logical(subset) || length(subset) != nprods ){stop("'subset' must be a logical vector the same length as 'quantities'")}
+
 
  FOC <- function(priceCand){
 
@@ -69,20 +84,24 @@ setMethod(
      else{          object@pricePost <- priceCand}
 
 
-     margins   <- 1 - mc/priceCand
-     revenues  <- calcShares(object,preMerger,revenue=TRUE)
-     elasticities     <- elast(object,preMerger)
+     margins    <- 1 - mc/priceCand
+     quantities <- calcQuantities(object,preMerger,revenue=TRUE)
+     revenues   <- priceCand*quantities
+     elasticities     <- t(elast(object,preMerger))
 
-     thisFOC <- revenues + as.vector(t(elasticities * owner) %*% (margins * revenues))
+     thisFOC <- revenues * diag(owner) + as.vector((elasticities * owner) %*% (margins * revenues))
+     thisFOC[!subset] <- revenues[!subset] #set quantity equal to 0 for firms not in subset
+
 
      return(thisFOC)
  }
 
- minResult <- nleqslv(object@priceStart,FOC,...)
+ minResult <- BBsolve(object@priceStart,FOC,quiet=TRUE,...)
 
- if(minResult$termcd != 1){warning("'calcPrices' nonlinear solver may not have successfully converged. 'nleqslv' reports: '",minResult$message,"'")}
+if(minResult$convergence != 0){warning("'calcPrices' nonlinear solver may not have successfully converged. 'BBSolve' reports: '",minResult$message,"'")}
 
- priceEst        <- minResult$x
+
+ priceEst        <- minResult$par
  names(priceEst) <- object@labels
  return(priceEst)
 
@@ -151,7 +170,7 @@ setMethod(
  definition=function(object,prodIndex){
 
 
-     mc <- calcMC(object,TRUE)[prodIndex]
+     mc <- object@mcPre[prodIndex]
      pricePre <- object@pricePre
 
      calcMonopolySurplus <- function(priceCand){
@@ -187,10 +206,11 @@ setMethod(
 
 
 loglinear <- function(prices,quantities,margins,diversions,
-                     ownerPre,ownerPost,
-                     mcDelta=rep(0,length(prices)),
-                     priceStart=prices,
-                     labels=paste("Prod",1:length(prices),sep=""),...
+                      ownerPre,ownerPost,
+                      mcDelta=rep(0,length(prices)),
+                      subset=rep(TRUE,length(prices)),
+                      priceStart=prices,
+                      labels=paste("Prod",1:length(prices),sep=""),...
                      ){
 
 
@@ -206,7 +226,7 @@ loglinear <- function(prices,quantities,margins,diversions,
 
 
     result <- new("LogLin",prices=prices, quantities=quantities,margins=margins,
-                  shares=shares,mcDelta=mcDelta, priceStart=priceStart,
+                  shares=shares,mcDelta=mcDelta, subset=subset, priceStart=priceStart,
                   ownerPre=ownerPre,diversion=diversions,
                   ownerPost=ownerPost, labels=labels)
 
@@ -218,9 +238,14 @@ loglinear <- function(prices,quantities,margins,diversions,
     ## Calculate Demand Slope Coefficients
     result <- calcSlopes(result)
 
+    ## Calculate marginal cost
+    result@mcPre <-  calcMC(result,TRUE)
+    result@mcPost <- calcMC(result,FALSE)
+
+
     ## Calculate pre and post merger equilibrium prices
     result@pricePre  <- calcPrices(result,TRUE,...)
-    result@pricePost <- calcPrices(result,FALSE,...)
+    result@pricePost <- calcPrices(result,FALSE,subset=subset,...)
 
 
    return(result)

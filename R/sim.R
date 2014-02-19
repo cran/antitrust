@@ -1,19 +1,25 @@
 sim <- function(prices,demand=c("Linear","AIDS","LogLin","Logit","CES","LogitNests","CESNests","LogitCap"),demand.param,
-                     ownerPre,ownerPost,nests, capacities,
-                     mcDelta=rep(0,length(prices)),
-                     priceStart=prices,
-                     labels=paste("Prod",1:length(prices),sep=""),...){
+                ownerPre,ownerPost,nests, capacities,
+                mcDelta=rep(0,length(prices)),
+                subset=rep(TRUE,length(prices)),
+                priceOutside,
+                priceStart,
+                labels=paste("Prod",1:length(prices),sep=""),...){
 
     demand <- match.arg(demand)
     nprods <- length(prices)
 
+    if(missing(priceStart)){
+        if(demand=="AIDS"){priceStart <- runif(nprods)}
+        else{              priceStart <- prices}
+        }
 
     ## Create placeholders values to fill required Class slots
 
     shares <- margins <- rep(1/nprods,nprods)
 
 
-    if(!missing(nests)){nests <- factor(nests)}
+    if(!missing(nests)){nests <- factor(nests,levels=unique(nests))}
 
 
     ## general checks
@@ -29,29 +35,31 @@ sim <- function(prices,demand=c("Linear","AIDS","LogLin","Logit","CES","LogitNes
              stop("'meanval' must be a length-k vector of product mean valuations. NAs not allowed.")
              }
 
-         ## An outside option is assumed to exist if all mean valuations are non-zero
-         if(all(demand.param$meanval!=0)){
-             normIndex <- NA
-             shares <- rep(1/(nprods+1),nprods)
-         }
-         else{
-             normIndex <- which(demand.param$meanval==0)
+         if(demand %in% c("LogitNests","Logit","LogitCap")){
 
-             if(length(normIndex)>1){
-                 warning("multiple values of meanval are equal to zero. Normalizing with respect to the first product with zero mean value.")
-                 normIndex <- normIndex[1]
+             ## An outside option is assumed to exist if all mean valuations are non-zero
+             if(all(demand.param$meanval!=0)){
+                 normIndex <- NA
+                 shares <- rep(1/(nprods+1),nprods)
+             }
+             else{
+                 normIndex <- which(demand.param$meanval==0)
+
+                 if(length(normIndex)>1){
+                     warning("multiple values of meanval are equal to zero. Normalizing with respect to the first product with zero mean value.")
+                     normIndex <- normIndex[1]
+                 }
+
              }
 
-         }
-
-         if(demand %in% c("LogitNests","Logit","LogitCap")){
              if(!("alpha" %in% names(demand.param))   ||
                   length(demand.param$alpha) != 1     ||
                   isTRUE(demand.param$alpha>0)){
                  stop("'demand.param' does not contain 'alpha' or 'alpha' is not a negative number.")
              }
 
-             shareInside <- 1 - sum(shares)
+             shareInside <- sum(shares)
+             if(missing(priceOutside)){priceOutside <- 0}
 
          }
 
@@ -78,15 +86,34 @@ sim <- function(prices,demand=c("Linear","AIDS","LogLin","Logit","CES","LogitNes
 
                  if(shareInside<1) {demand.param$alpha <- 1/shareInside -1}
                  else{ demand.param$alpha <- NULL}
+
+
              }
 
 
+             ## An outside option is assumed to exist if all mean valuations are non-zero
+             if(all(demand.param$meanval!=1)){
+                 normIndex <- NA
+                 shares <- rep(1/(nprods+1),nprods)
+             }
+             else{
+                 normIndex <- which(demand.param$meanval==1)
+
+                 if(length(normIndex)>1){
+                     warning("multiple values of meanval are equal to one. Normalizing with respect to the first product with  mean value equal to 1.")
+                     normIndex <- normIndex[1]
+                 }
+
+             }
+
+
+             if(missing(priceOutside)){priceOutside <- 1}
          }
 
          if(demand %in% c("CESNests","LogitNests")){
 
              if(!("sigma" %in% names(demand.param))){
-                 stop("'demand.param' does not contain 'meanval'.")
+                 stop("'demand.param' does not contain 'sigma'.")
             }
              if(length(demand.param$sigma)==1){constraint=TRUE}
              else{constraint=FALSE}
@@ -143,6 +170,7 @@ sim <- function(prices,demand=c("Linear","AIDS","LogLin","Logit","CES","LogitNes
 
          result <- new(demand,prices=prices, shares=shares,margins=margins,
                        mcDelta=mcDelta,
+                       subset=subset,
                        ownerPre=ownerPre,
                        ownerPost=ownerPost,
                        nests=nests,
@@ -158,6 +186,7 @@ sim <- function(prices,demand=c("Linear","AIDS","LogLin","Logit","CES","LogitNes
 
         result <- new(demand,prices=prices, shares=shares,margins=margins,
                       mcDelta=mcDelta,
+                      subset=subset,
                       ownerPre=ownerPre,
                       ownerPost=ownerPost,
                       nests=nests,
@@ -177,6 +206,7 @@ sim <- function(prices,demand=c("Linear","AIDS","LogLin","Logit","CES","LogitNes
                       margins=margins,
                       normIndex=normIndex,
                       mcDelta=mcDelta,
+                      subset=subset,
                       ownerPre=ownerPre,
                       ownerPost=ownerPost,
                       priceStart=priceStart,shareInside=shareInside,
@@ -206,6 +236,7 @@ sim <- function(prices,demand=c("Linear","AIDS","LogLin","Logit","CES","LogitNes
                       ownerPre=ownerPre,
                       ownerPost=ownerPost,
                       mcDelta=mcDelta,
+                      subset=subset,
                       priceStart=priceStart,shareInside=shareInside,
                       labels=labels)
     }
@@ -216,7 +247,7 @@ sim <- function(prices,demand=c("Linear","AIDS","LogLin","Logit","CES","LogitNes
 
 
         result <- new(demand,prices=prices, quantities=shares,margins=margins,
-                      shares=shares,mcDelta=mcDelta,
+                      shares=shares,mcDelta=mcDelta,  subset=subset,
                       ownerPre=ownerPre,diversion=-diag(nprods),
                       symmetry=identical(demand.param$slopes,t(demand.param$slopes)),
                       ownerPost=ownerPost, priceStart=priceStart,labels=labels)
@@ -227,11 +258,14 @@ sim <- function(prices,demand=c("Linear","AIDS","LogLin","Logit","CES","LogitNes
 
         ## find the market elasticity that best explains user-supplied intercepts and prices
 
+        aidsShares    <- as.vector(demand.param$intercepts + demand.param$slopes %*% log(prices)) # AIDS needs actual shares for prediction
+        aidsDiv       <- tcrossprod(1/(1-aidsShares),aidsShares)
+        diag(aidsDiv) <- -1
 
         result <- new(demand,prices=prices, quantities=shares,margins=margins,
-                      shares=as.vector(demand.param$intercepts + demand.param$slopes %*% prices), # AIDS needs actual shares for prediction
-                      mcDelta=mcDelta, mktElast=demand.param$mktElast,
-                      ownerPre=ownerPre,diversion=-diag(nprods),
+                      shares=aidsShares,
+                      mcDelta=mcDelta,  subset=subset,mktElast=demand.param$mktElast,
+                      ownerPre=ownerPre,diversion=aidsDiv,
                       priceStart=priceStart,
                       ownerPost=ownerPost, labels=labels)
 
@@ -243,7 +277,7 @@ sim <- function(prices,demand=c("Linear","AIDS","LogLin","Logit","CES","LogitNes
 
 
         result <- new(demand,prices=prices, quantities=shares,margins=margins,
-                      shares=shares,mcDelta=mcDelta, priceStart=priceStart,
+                      shares=shares,mcDelta=mcDelta, subset=subset, priceStart=priceStart,
                       ownerPre=ownerPre,diversion=-diag(nprods),
                       ownerPost=ownerPost, labels=labels)
 
@@ -261,6 +295,9 @@ sim <- function(prices,demand=c("Linear","AIDS","LogLin","Logit","CES","LogitNes
     result@ownerPre  <- ownerToMatrix(result,TRUE)
     result@ownerPost <- ownerToMatrix(result,FALSE)
 
+    ## Calculate marginal cost
+    result@mcPre     <-  calcMC(result,TRUE)
+    result@mcPost    <-  calcMC(result,FALSE)
 
     if(demand == "AIDS"){
         ## Solve Non-Linear System for Price Changes
@@ -270,7 +307,7 @@ sim <- function(prices,demand=c("Linear","AIDS","LogLin","Logit","CES","LogitNes
 
     ## Solve Non-Linear System for Price Changes
     result@pricePre  <- calcPrices(result,TRUE,...)
-    result@pricePost <- calcPrices(result,FALSE,...)
+    result@pricePost <- calcPrices(result,FALSE,subset=subset,...)
 
 
     return(result)

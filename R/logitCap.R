@@ -29,7 +29,7 @@ setClass(
 
              if(any(object@mktSize*object@shares > object@capacities)){stop("utilization is greater than capacity")}
 
-             if(all(object@mktSize*object@shares == object@capacities)){stop("utilization cannot equal capacity for all products")}
+             if(identical(object@mktSize*object@shares,object@capacities)){stop("utilization cannot equal capacity for all products")}
 
              if(any(is.na(object@margins[object@mktSize*object@shares == object@capacities]))){
                  stop("'margins' cannot equal NA for capacity constrained products")
@@ -57,7 +57,7 @@ setMethod(
 
               if(is.na(idx)){
                   idxShare <- 1 - object@shareInside
-                  idxPrice <- 0
+                  idxPrice <- object@priceOutside
               }
               else{
                   idxShare <- shares[idx]
@@ -83,7 +83,7 @@ setMethod(
                   diag(elast) <- alpha*prices + diag(elast)
 
 
-                  FOC <- revenues + (elast * ownerPre * notBinds) %*% (margins * revenues)
+                  FOC <- revenues * diag(ownerPre) + (elast * ownerPre * notBinds) %*% (margins * revenues)
 
                   ## omit the FOCs of single product, capacity constrained firms
                   measure <- sum(as.vector(FOC[!singleConstrained])^2,na.rm=TRUE)
@@ -131,13 +131,13 @@ setMethod(
          owner  <- object@ownerPre
          revenue<- calcShares(object,preMerger,revenue=TRUE)[!constrained]
          elast <-  elast(object,preMerger)
-         margins[!constrained] <-  -1 * as.vector(solve(t(elast*owner)[!constrained,!constrained]) %*% revenue) / revenue
+         margins[!constrained] <-  -1 * as.vector(ginv(t(elast*owner)[!constrained,!constrained]) %*% revenue) / revenue
 
      }
 
      else{
          prices <- object@pricePost
-         mc     <- calcMC(object,preMerger)
+         mc     <- object@mcPost
 
          margins <- 1 - mc/prices
      }
@@ -155,30 +155,50 @@ setMethod(
 setMethod(
  f= "calcPrices",
  signature= "LogitCap",
- definition=function(object,preMerger=TRUE,isMax=FALSE,...){
+ definition=function(object,preMerger=TRUE,isMax=FALSE,subset,...){
 
 
      capacities <- object@capacities
 
-     if(preMerger){owner <- object@ownerPre}
-     else{owner <- object@ownerPost}
+     if(preMerger){
+       owner <- object@ownerPre
+       mc    <- object@mcPre
+     }
+     else{
+       owner <- object@ownerPost
+       mc    <- object@mcPost
+     }
 
-     mc <- calcMC(object,preMerger)
+     nprods <- length(object@shares)
+     if(missing(subset)){
+        subset <- rep(TRUE,nprods)
+     }
 
+     if(!is.logical(subset) || length(subset) != nprods ){stop("'subset' must be a logical vector the same length as 'shares'")}
+
+     if(any(!subset)){
+         owner <- owner[subset,subset]
+         mc    <- mc[subset]
+         priceStart <- priceStart[subset]
+         capacities <- capacities[subset]
+         }
+
+
+     priceEst <- rep(NA,nprods)
 
      ##Define system of FOC as a function of prices
      FOC <- function(priceCand){
 
-         if(preMerger){ object@pricePre <- priceCand}
-         else{          object@pricePost <- priceCand}
+         if(preMerger){ object@pricePre[subset] <- priceCand}
+         else{          object@pricePost[subset] <- priceCand}
 
 
          margins          <- 1 - mc/priceCand
-         quantities       <- calcQuantities(object,preMerger)
+         quantities       <- calcQuantities(object,preMerger)[subset]
          revenues         <- quantities * priceCand
-         elasticities     <- elast(object,preMerger)
+         elasticities     <- elast(object,preMerger)[subset,subset]
 
-         thisFOC <- revenues + as.vector(t(elasticities * owner) %*% (margins * revenues))
+         thisFOC <- revenues * diag(owner) + as.vector(t(elasticities * owner) %*% (margins * revenues))
          constraint <- quantities - capacities
 
          measure <- thisFOC + constraint + sqrt(thisFOC^2 + constraint^2)
@@ -186,16 +206,18 @@ setMethod(
          return(measure)
      }
 
+
      ## Find price changes that set FOCs equal to 0
-     minResult <- nleqslv(object@priceStart,FOC,...)
+     minResult <- BBsolve(object@priceStart,FOC,quiet=TRUE,...)
 
-      if(minResult$termcd != 1){warning("'calcPrices' nonlinear solver may not have successfully converged. 'nleqslv' reports: '",minResult$message,"'")}
+      if(minResult$convergence != 0){warning("'calcPrices' nonlinear solver may not have successfully converged. 'BBsolve' reports: '",minResult$message,"'")}
 
-     priceEst        <- minResult$x
+     priceEst[subset]        <- minResult$par
      names(priceEst) <- object@labels
+
   if(isMax){
 
-         hess <- genD(FOC,priceEst) #compute the numerical approximation of the FOC hessian at optimium
+         hess <- genD(FOC,minResult$par) #compute the numerical approximation of the FOC hessian at optimium
          hess <- hess$D[,1:hess$p]
          hess <- hess * (owner>0)   #0 terms not under the control of a common owner
 
@@ -217,7 +239,7 @@ setMethod(
  definition=function(object,prodIndex,...){
 
 
-     mc       <- calcMC(object,TRUE)[prodIndex]
+     mc       <- object@mcPre[prodIndex]
      pricePre <- object@pricePre
 
       FOC <- function(priceCand){
@@ -225,14 +247,12 @@ setMethod(
           thisPrice <- pricePre
           thisPrice[prodIndex] <- priceCand
 
-          if(preMerger){ object@pricePre <- thisPrice}
-          else{          object@pricePost <- thisPrice}
-
+          object@pricePre <- thisPrice
 
           margins          <- 1 - mc/priceCand
-          quantities       <- calcQuantities(object,preMerger)[prodIndex]
+          quantities       <- calcQuantities(object,preMerger=TRUE)[prodIndex]
           revenues         <- quantities * priceCand
-          elasticities     <- elast(object,preMerger)[prodIndex,prodIndex]
+          elasticities     <- elast(object,preMerger=TRUE)[prodIndex,prodIndex]
 
           thisFOC <- revenues + as.vector(t(elasticities) %*% (margins * revenues))
           constraint <- quantities - object@capacities[prodIndex]
@@ -245,12 +265,12 @@ setMethod(
 
 
       ## Find price changes that set FOCs equal to 0
-     minResult <- nleqslv(object@priceStart[prodIndex],FOC,...)
+     minResult <- BBsolve(object@priceStart[prodIndex],FOC,quiet=TRUE,...)
 
-     if(minResult$termcd != 1){warning("'calcPricesHypoMon' nonlinear solver may not have successfully converged. 'nleqslv' reports: '",minResult$message,"'")}
+     if(minResult$convergence != 0){warning("'calcPricesHypoMon' nonlinear solver may not have successfully converged. 'BBSolve' reports: '",minResult$message,"'")}
 
 
-     pricesHM <- minResult$x
+     pricesHM <- minResult$par
       #priceDelta <- pricesHM/pricePre[prodIndex] - 1
       #names(priceDelta) <- object@labels[prodIndex]
      names(priceHM) <- object@labels[prodIndex]
@@ -267,6 +287,8 @@ logit.cap <- function(prices,shares,margins,
                       mktSize=sum(capacities),
                       normIndex=ifelse(sum(shares)<1,NA,1),
                       mcDelta=rep(0,length(prices)),
+                      subset=rep(TRUE,length(prices)),
+                      priceOutside=0,
                       priceStart = prices,
                       isMax=FALSE,
                       labels=paste("Prod",1:length(prices),sep=""),
@@ -281,6 +303,8 @@ logit.cap <- function(prices,shares,margins,
                   ownerPre=ownerPre,
                   ownerPost=ownerPost,
                   mcDelta=mcDelta,
+                  subset=subset,
+                  priceOutside=priceOutside,
                   priceStart=priceStart,shareInside=sum(shares),
                   labels=labels)
 
@@ -292,9 +316,13 @@ logit.cap <- function(prices,shares,margins,
     result <- calcSlopes(result)
 
 
+    ## Calculate marginal cost
+    result@mcPre <-  calcMC(result,TRUE)
+    result@mcPost <- calcMC(result,FALSE)
+
     ## Solve Non-Linear System for Price Changes
     result@pricePre  <- calcPrices(result,preMerger=TRUE,isMax=isMax,...)
-    result@pricePost <- calcPrices(result,preMerger=FALSE,isMax=isMax,...)
+    result@pricePost <- calcPrices(result,preMerger=FALSE,isMax=isMax,subset=subset,...)
 
 
     return(result)

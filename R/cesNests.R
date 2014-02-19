@@ -6,8 +6,7 @@ setClass(
 
          representation=representation(
          nests="factor",
-         parmsStart="numeric"
-         ,
+         parmsStart="numeric",
          constraint="logical"
          ),
 
@@ -31,7 +30,9 @@ setClass(
              nestCnt   <- nestCnt[object@nests]
              isSingleton <- nestCnt==1
 
-             if(nNestParm==1) stop("'ces.nests' cannot be used for non-nested problems. Use 'ces' instead")
+             nNestParm <- nNestParm - sum(isSingleton) #singleton nests are not identified
+
+             if(identical(nNestParm,1)) stop("'ces.nests' cannot be used for non-nested problems or problems with only singleton nests. Use 'ces' instead")
 
              if(nprods != length(object@nests)){
                  stop("'nests' length must equal the number of products")
@@ -49,7 +50,7 @@ setClass(
                 any(tapply(object@margins[!isSingleton],object@nests[!isSingleton],
                            function(x){if(all(is.na(x))){return(TRUE)} else{return(FALSE)}}
                            )
-                    )
+                    ,na.rm=TRUE)
                 ){
                  stop("when 'constraint' is FALSE, at least one product margin must be supplied for each non-singleton nest")
              }
@@ -107,6 +108,12 @@ Normalizing these parameters to 1.")
 
               nprods <- length(shares)
 
+              ## identify which products have enough margin
+              ## information to impute Bertrand margins
+              isMargin    <- matrix(margins,nrow=nprods,ncol=nprods,byrow=TRUE)
+              isMargin[ownerPre==0]=0
+              isMargin    <- !is.na(rowSums(isMargin))
+
               sharesNests <- tapply(shares,nests,sum)[nests]
 
               sharesNests <- shares / sharesNests
@@ -117,19 +124,6 @@ Normalizing these parameters to 1.")
               else{ alpha <- NULL}
 
 
-
-              if(is.na(idx)){
-                  idxShare      <- 1 - sum(shares)
-                  idxShareNests <- 1
-                  idxPrice      <- 1
-              }
-
-              else{
-
-                  idxShare      <- shares[idx]
-                  idxShareNests <- sharesNests[idx]
-                  idxPrice      <- prices[idx]
-               }
 
 
 
@@ -151,9 +145,17 @@ Normalizing these parameters to 1.")
 
                   diag(elast) <- diag(elast) - sigma[nests]
 
-                  marginsCand <- -1 * as.vector(solve(elast * ownerPre) %*% shares) / shares
+                  #marginsCand <- -1 * as.vector(ginv(elast * ownerPre) %*% (shares * diag(ownerPre))) / shares
+                  #measure <- sum((margins - marginsCand)^2,na.rm=TRUE)
 
-                  measure <- sum((margins - marginsCand)^2,na.rm=TRUE)
+
+                  elast      <- elast[isMargin,isMargin]
+                  shares     <- shares[isMargin]
+                  ownerPre   <- ownerPre[isMargin,isMargin]
+                  margins    <- margins[isMargin]
+
+                  FOC <- (shares * diag(ownerPre)) + (elast * ownerPre) %*% (shares * margins)
+                  measure<-sum(FOC^2,na.rm=TRUE)
 
                   return(measure)
               }
@@ -187,11 +189,22 @@ Normalizing these parameters to 1.")
               minSigma           <- minSigma[nests]
               names(minSigmaOut)    <- levels(nests)
 
-              ##normalize outside good nesting parameter to 1
-              if(is.na(idx)){
-                  idxSigma   <- minSigma[idx]
+
+               if(is.na(idx)){
+                  idxShare      <- 1 - sum(shares)
+                  idxShareNests <- 1
+                  idxPrice      <- object@priceOutside
+                  idxSigma      <- 0
               }
-              else{idxSigma <- 0}
+
+              else{
+
+                  idxShare      <- shares[idx]
+                  idxShareNests <- sharesNests[idx]
+                  idxPrice      <- prices[idx]
+                  idxSigma      <- minSigma[idx]
+               }
+
 
               meanval <-
                   log(shares) - log(idxShare) + (minGamma - 1) *
@@ -221,23 +234,24 @@ setMethod(
      if(preMerger){ prices <- object@pricePre}
      else{          prices <- object@pricePost}
 
-     isOutside <- sum(object@shares) < 1
+
      nests     <- object@nests
      gamma    <- object@slopes$gamma
      sigma    <- object@slopes$sigma
      meanval  <- object@slopes$meanval
 
+     outVal <- ifelse(sum(object@shares)<1, object@priceOutside^(1-gamma), 0)
 
      sharesIn     <- meanval*prices^(1-sigma[nests])
-     sharesAcross <- tapply(sharesIn,nests,sum)
+     sharesAcross <- tapply(sharesIn,nests,sum,na.rm=TRUE)
      sharesIn     <- sharesIn / sharesAcross[nests]
      sharesAcross <- sharesAcross^((1-gamma)/(1-sigma))
-     sharesAcross <- sharesAcross / (sum(sharesAcross) + as.numeric(isOutside))
+     sharesAcross <- sharesAcross / (sum(sharesAcross,na.rm=TRUE) + outVal)
 
      shares       <- sharesIn * sharesAcross[nests]
 
      ##transform revenue shares to quantity shares
-     if(!revenue){shares <- (shares/prices)/sum(shares/prices)}
+     if(!revenue){shares <- (shares/prices)/sum((1-sum(shares,na.rm=TRUE))/object@priceOutside,shares/prices,na.rm=TRUE)}
 
      names(shares) <- object@labels
 
@@ -259,7 +273,7 @@ setMethod(
      meanval  <- object@slopes$meanval
 
      shares <- calcShares(object,preMerger,revenue=TRUE)
-     sharesNests <- shares/tapply(shares,nests,sum)[nests]
+     sharesNests <- shares/tapply(shares,nests,sum,na.rm=TRUE)[nests]
 
        if(market){
 
@@ -307,8 +321,8 @@ setMethod(
               shareInside <- object@shareInside
 
 
-              VPre  <- sum(tapply(meanval *  object@pricePre^(1-sigma[nests]),nests,sum) ^((1-gamma)/(1-sigma)))
-              VPost <- sum(tapply(meanval * object@pricePost^(1-sigma[nests]),nests,sum) ^((1-gamma)/(1-sigma)))
+              VPre  <- sum(tapply(meanval *  object@pricePre^(1-sigma[nests]),nests,sum,na.rm=TRUE) ^((1-gamma)/(1-sigma)))
+              VPost <- sum(tapply(meanval * object@pricePost^(1-sigma[nests]),nests,sum,na.rm=TRUE) ^((1-gamma)/(1-sigma)))
 
               ##tempPre  <- log( sum( tapply(meanval * object@pricePre^(1-sigma[nests]),nests,sum) ^((1-gamma)/(1-sigma)) ) )
               ##tempPre  <- (gamma/(gamma-1)) * log( sum( tapply( meanval^((1-gamma)/(1-sigma[nests])) * object@pricePre^(-gamma),nests,sum)^((gamma-1)/gamma)) ) - tempPre
@@ -338,6 +352,8 @@ ces.nests <- function(prices,shares,margins,
                       shareInside = 1,
                       normIndex=ifelse(sum(shares) < 1,NA,1),
                       mcDelta=rep(0,length(prices)),
+                      subset=rep(TRUE,length(prices)),
+                      priceOutside=1,
                       priceStart = prices,
                       isMax=FALSE,
                       constraint = TRUE,
@@ -348,8 +364,7 @@ ces.nests <- function(prices,shares,margins,
 
 
 
-    if(is.factor(nests)){nests <- nests[,drop=TRUE] }
-    else{nests <- factor(nests)}
+    nests <- factor(nests,levels=unique(nests))
 
 
     if(missing(parmsStart)){
@@ -362,6 +377,8 @@ ces.nests <- function(prices,shares,margins,
     ## Create CESNests  container to store relevant data
     result <- new("CESNests",prices=prices, shares=shares,margins=margins,
                   mcDelta=mcDelta,
+                  subset=subset,
+                  priceOutside=priceOutside,
                   ownerPre=ownerPre,
                   ownerPost=ownerPost,
                   nests=nests,
@@ -378,10 +395,13 @@ ces.nests <- function(prices,shares,margins,
     ## Calculate Demand Slope Coefficients
     result <- calcSlopes(result)
 
+    ## Calculate marginal cost
+    result@mcPre <-  calcMC(result,TRUE)
+    result@mcPost <- calcMC(result,FALSE)
 
     ## Solve Non-Linear System for Price Changes
     result@pricePre  <- calcPrices(result,preMerger=TRUE,isMax=isMax,...)
-    result@pricePost <- calcPrices(result,preMerger=FALSE,isMax=isMax,...)
+    result@pricePost <- calcPrices(result,preMerger=FALSE,isMax=isMax,subset=subset,...)
 
 
     return(result)

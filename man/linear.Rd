@@ -16,6 +16,7 @@
                      symmetry=TRUE,
                      ownerPre,ownerPost,
                      mcDelta=rep(0,length(prices)),
+                     subset=rep(TRUE, length(prices)),
                      priceStart=prices,
                      labels=paste("Prod",1:length(prices),sep=""),
                      ...
@@ -26,6 +27,7 @@
                      diversions,
                      ownerPre,ownerPost,
                      mcDelta=rep(0,length(prices)),
+                     subset=rep(TRUE, length(prices)),
                      priceStart=prices,
                      labels=paste("Prod",1:length(prices),sep=""),
                      ...
@@ -52,13 +54,17 @@
   \item{mcDelta}{A length k vector where each element equals the
     proportional change in a product's marginal costs due to
     the merger. Default is 0, which assumes that the merger does not
-  affect any products' marginal cost.}
- \item{priceStart}{A length k vector of prices used as the initial guess
-  in the nonlinear equation solver. Default is `prices'.}
-  \item{labels}{A k-length vector of labels. Default is "Prod#", where
-  `#' is a number between 1 and the length of `prices'.}
- \item{...}{Additional options to feed to the solver. See below.}
-}
+    affect any products' marginal cost.}
+   \item{subset}{A vector of length k where each element equals TRUE if
+     the product indexed by that element should be included in the
+     post-merger simulation and FALSE if it should be excluded.Default is a
+     length k vector of TRUE.}
+   \item{priceStart}{A length k vector of prices used as the initial guess
+     in the nonlinear equation solver. Default is \sQuote{prices}.}
+   \item{labels}{A k-length vector of labels. Default is "Prod#", where
+     \sQuote{#} is a number between 1 and the length of \sQuote{prices}.}
+   \item{...}{Additional options to feed to the solver. See below.}
+ }
 
 
 
@@ -78,9 +84,9 @@
   differentiated Bertrand pricing game.
 
 
-  `diversion' must equal a square matrix whose elements are be between
-  -1 and 1. If `diversion' is missing, then diversion according to quantity share is assumed. If
-  a square matrix is supplied, the off-diagonal elements [i,j] of `diversion'
+  \sQuote{diversion} must equal a square matrix whose elements are be between
+  -1 and 1. If \sQuote{diversion} is missing, then diversion according to quantity share is assumed. If
+  a square matrix is supplied, the off-diagonal elements [i,j] of \sQuote{diversion}
   must equal an estimate of the diversion ratio from product i to product j
   (i.e. the estimated fraction of i's sales that go to j due to a small
   increase in i's price). Off-diagonal elements are restricted to be
@@ -89,7 +95,7 @@
 
 
 
-  `ownerPre' and `ownerPost' values will typically be equal to either 0
+  \sQuote{ownerPre} and \sQuote{ownerPost} values will typically be equal to either 0
   (element [i,j] is not commonly owned) or 1 (element [i,j] is commonly
   owned), though these matrices may take on any value between 0 and 1 to
   account for partial ownership.
@@ -103,8 +109,8 @@
   be used to change the default options for \link{constrOptim}.
 
   \code{loglinear} uses the non-linear equation solver
-  \code{\link[nleqslv]{nleqslv}} to find equilibrium prices.  \code{...} may
-  be used to change the default options for \code{\link[nleqslv]{nleqslv}}.
+  \code{\link[BB]{BBsolve}} to find equilibrium prices.  \code{...} may
+  be used to change the default options for \code{\link[BB]{BBsolve}}.
 
 
 
@@ -127,8 +133,8 @@
 
 \references{
 von Haefen, Roger (2002).
-``A Complete Characterization Of The Linear, Log-Linear, And Semi-Log
-Incomplete Demand System Models.''
+\dQuote{A Complete Characterization Of The Linear, Log-Linear, And Semi-Log
+  Incomplete Demand System Models.}
 \emph{Journal of Agricultural and Resource Economics}, \bold{27}(02).
 \url{http://ideas.repec.org/a/ags/jlaare/31118.html}.
 }
@@ -147,15 +153,7 @@ Incomplete Demand System Models.''
 n <- 3 #number of firms in market
 price    <- c(2.9,3.4,2.2)
 quantity <- c(650,998,1801)
-
-
-slopes <- matrix(
-c(-2.3,	  0.18,	0.28,
-   0.11, -2.4,	0.1,
-   0.13,   .16,-2.7),ncol=n)
-
-
-margin <- -1/diag(slopes)
+margin <- c(.435,.417,.370)
 
 
 #simulate merger between firms 1 and 2
@@ -184,8 +182,20 @@ CV(result.linear)              # returns representative agent compensating varia
 ## Implement the Hypothetical Monopolist Test
 ## for products 1 and 2 using a 5\% SSNIP
 
-HypoMonTest(result.linear,prodIndex=1:2)
+#HypoMonTest(result.linear,prodIndex=1:2)
 
+
+## Get a detailed description of the 'Linear' class slots
+showClass("Linear")
+
+## Show all methods attached to the 'Linear' Class
+showMethods(classes="Linear")
+
+## Show which class have their own 'elast' method
+showMethods("elast")
+
+## Show the method definition for 'elast' and Class 'Linear'
+getMethod("elast","Linear")
 
 
 

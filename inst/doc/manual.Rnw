@@ -34,7 +34,7 @@
 public domain without warranty of any kind, expressed or implied. We
 thank Ronald Drennan, Robert Majure, Russell Pittman, Gloria Sheu,
 Nathan Miller, Randy Chugh, Marc Remer, Alexander Raskovich, William Drake, Thomas
-Jeitschko, Greg Werden,  and Conor Ryan. Address: Economic Analysis Group, Antitrust Division, U.S. Department of Justice, 450 5th St. NW, Washington DC 20530.  E-mail: \href{mailto:charles.taragin@usdoj.gov}{charles.taragin@usdoj.gov}
+Jeitschko, Greg Werden,  Nicholas Hill, and Conor Ryan. Address: Economic Analysis Group, Antitrust Division, U.S. Department of Justice, 450 5th St. NW, Washington DC 20530.  E-mail: \href{mailto:charles.taragin@usdoj.gov}{charles.taragin@usdoj.gov}
 and
 \href{mailto:michael.sandfort@usdoj.gov}{michael.sandfort@usdoj.gov}.}\and
 Michael Sandfort\samethanks}
@@ -81,7 +81,7 @@ platform. Practically speaking, this means that practitioners not only
 have the flexibility to run this software wherever and whenever they
 wish, but they can also modify and extend the software as they see
 fit.  We hope that having this collection of tools on a common, open
-source platform will facilitate discussion and collaboration amongst practitioners.
+source platform will facilitate discussion and collaboration among practitioners.
 
 %There are three features of \atr{} that make it particularly useful
 %for antitrust practitioners. First, \atr{} collects a number of useful models in a single place,
@@ -359,7 +359,7 @@ d^r_{ij}=&-\frac{\frac{\partial p_jq_j}{\partial p_i}}{\frac{\partial
 \end{align}
 
 Note that $d^q_{ij},d^r_{ij}$ are restricted to be between -1 and 1,
-and are positive if products $i$ and $j$ are substitutes and negative if they are complements.
+and are positive if products $i$ and $j$ are substitutes and negative if they are complements. Additionally, conditional on customers switching from product $i$, they must switch to another product (i.e. $\sum_{j}d_{ij}\le 0$). For all the models included in \atr{} , we assume that $i$ and $j$ are not complements ($d_{ij}\ge 0$) and for some demand models (i.e. AIDS) we will assume that   $\sum_{j}d_{ij} = 0$.
 
 Although diversion ratios are not present in either equation
 \ref{eqn:FOC} or \ref{eqn:FOCC}, these definitions indicate that diversion ratios may
@@ -380,8 +380,7 @@ market playing the static Bertrand pricing game described above.
 We then substitute observed margins, shares and prices into
 either equation \ref{eqn:FOC} or \ref{eqn:FOCC}, which is now solely a function of demand
 parameters, and then solve for the coefficient(s) on prices. Once the
-price coefficients have been estimated, we use observed prices to
-estimate the intercepts.
+price coefficients have been estimated, we use observed prices and the demand equations to estimate the intercepts.
 
 Often, there are more FOCs than unknown price
 coefficients. For instance, under Logit demand, there is only one
@@ -419,17 +418,17 @@ in the market is given by
 
 \begin{align*}
   q_i=& \alpha_i + \sum_{j\in n}\beta_{ij} p_j \mbox{ for all $i\in
-    n$},& \beta_{ii}<0\\
+    n$},&\\
   \intertext{ which may be written in matrix notation as }\\
   q=&\alpha + Bp,&
 \end{align*}
 
-where $q,p$ are vectors of product quantities and prices, $\alpha$ is a vector of product specific demand intercepts and
+where $q\ge 0,p>0$ are vectors of product quantities and prices, $\alpha$ is a vector of product specific demand intercepts and
 $B$ is a matrix of slopes. This demand system yields the following
 own- and cross-price elasticities:
 \begin{align*}
-  \epsilon_{ii}=&\beta_{ii}\frac{p_i}{q_i} \\
-  \epsilon_{ij}=&\beta_{ij}\frac{p_i}{q_j}
+  \epsilon_{ii}=&\beta_{ii}\frac{p_i}{q_i},& \epsilon_{ii}<0\\
+  \epsilon_{ij}=&\beta_{ij}\frac{p_i}{q_j},& \epsilon_{ij} \ge 0
 \end{align*}
 
 
@@ -443,8 +442,8 @@ $\alpha,B$ cannot be recovered. To remedy this, we assume that the
     share. Diversion according to quantity share assumes that
   $d^q_{ij}=\frac{s_j}{1-s_i}$, where $s_i,s_j$ are the
   \emph{quantity} share of $i$ and $j$. As we will see, this is the assumption underlying the
-  Logit demand system. } With the linear model, this assumption reduces the number of
-unknown parameters to $2n$, allowing estimates of $\alpha$ and
+  Logit demand system. } With the linear model, this assumption increases the number of
+equations to $n(n+1)$, allowing estimates of $\alpha$ and
 $B$ to be recovered if prices, quantities and margins are observed for
 all products.
 
@@ -453,37 +452,30 @@ One known issue with the linear demand system is that, while
 analytically tractable, it is not rooted in consumer choice
 theory. Indeed, it has been shown
 that the linear demand system without income effects is consistent
-with the axioms of consumer choice if and only if $B$ is
-a symmetric matrix.\footnote{See \cite{Haefen2002}.} Imposing this additional assumption reduces the number
-of unknown parameters to $n+1$ ($n$ intercepts and 1 slope), which means that the system is
-over-identified.\footnote{Mathematically, symmetry implies that
-  $\beta_{ij}=\beta_{ji}$, for all products $i,j$. Under linear demand, the definition of
-  quantity diversion can be rewritten as $\beta_{ji}=-d^q_{ij}\beta{ii}$,
-  Combining these assumptions implies that
-  $\beta_{jj}=\frac{d^q_{ij}}{d^q_{ji}}\beta_{ii}$. Hence, knowing a single
-$\beta_{ii}$  for some $i\in n$ is sufficient to estimate all the diagonal elements of $B$, which
-in turn are sufficient to estimate all the off-diagonal elements of
-$B$. Once $B$ has been estimated, $\alpha$ may be recovered from the linear demand system.}
+with the axioms of consumer choice if $B$ is
+a symmetric matrix and satisfies homogeneity of degree 0 in prices.\footnote{See \cite[pp. 283]{Haefen2002}.} Imposing these additional assumptions reduces the number
+of unknown parameters to $\frac{n(n+3)}{2}$ ($\frac{n(n+1)}{2}$ elements of $B$ and $n$ intercepts), which means that the system is
+over-identified.\footnote{In fact, it turns out that only one element of $B$ must be estimated.To see why, note that under symmetry, $\beta_{jj}=\frac{d_{ij}}{d_{ji}}\beta_{ii}$. Hence, if $\beta_{ii}$ is known, then the preceding equation indicates that all the $\beta_{jj}$s may be recovered. From here, the definition of diversion may be used to recover all the $\beta_{ij}s$.}
 
-
+The linear demand system can be modified to allow for substitution to an outside (numeraire) good. To accomplish this, assume that the price of the outside product is not set strategically (i.e. not set as part of the Nash-Bertrand game played by the manufacturers of the $n$ products included in the simulation). It can be shown that if $B$ is symmetric and satisfies homogeneity of degree 0 in prices when the outside good is included, then $\sum_{j\in n}d_{ij}<0$.\footnote{To see this, note:
+\begin{align*}
+&\sum_{i \in n } \beta_{ij} <0 & \text{(homogeneity of degree 0 with outside good)} \\
+\Leftrightarrow& \beta_{ii}+\sum_{j\ne i}\beta_{ji} < 0 & \text{(symmetry)}\\
+\Leftrightarrow& \beta_{ii}-\sum_{j\ne i}d_{ij}\beta_{ii}<0 \\
+\Leftrightarrow& \beta_{ii}(1-\sum_{j\ne i}d_{ij})<0 \\
+\Rightarrow & \sum_{j \in n } d_{ij} <0\\
+\end{align*}
+where the last line follows since $\beta_{ii}<0\Rightarrow 1-\sum_{j\ne i}d_{ij}>0$.
+}. In other words, under symmetry and homogeneity of degree 0, users may include a non-strategically priced outside good by simply allowing the rows of the diversion matrix to sum to less than zero. The extent to which consumers substitute from product $i$ to the outside good may be controlled by increasing the magnitude of $\sum_{j \in n } d_{ij}$. 
 
 By default, the \verb@calcSlopes@ method, called by the \verb@linear@
-function to calibrate the linear demand parameters, assumes that the above two
-assumptions hold and uses all the FOCs from
-equation \ref{eqn:FOC} for which there is sufficient information to
-solve for the $n + 1$ unknown parameters. Under these assumptions,
-users need only to supply margin information for a single firm's products to uncover
-the unknown slope parameter. However, \verb@calcSlopes@
-allows for the possibility that users may possess margin information
-on multiple products, in which case there are
-more equations than unknowns. To accommodate this,
-\verb@calcSlopes@ employs a minimum distance algorithm to find the
-parameter value that best satisfies all the FOCs for which there are data.
+function to calibrate the linear demand parameters, assumes that the above
+assumptions hold and uses a minimum distance algorithm to find the elements of $B$ that best satisfy i) all the FOCs for which there is sufficient information and ii) the diversion equations $d_{ij}=-\frac{\beta_{ji}}{\beta_{ii}}$, subject to the constraints that $\beta_{ij}\ge 0$ for all $i\ne j$ and $\sum_j b_{ij}\le 0$ for all $i$. The model intercepts can then be recovered from the linear demand equations.
 
 
 For completeness, \verb@linear@ includes the `symmetry' argument that,
 when set equal to FALSE, instructs \verb@calcSlopes@ to calibrate demand parameters without imposing
-symmetry on $B$. Note that when `symmetry' is FALSE, the system of
+symmetry and homogeneity of degree zero in prices on $B$. Note that when `symmetry' is FALSE, the system of
 equations is just-identified, which means that prices, quantities, and
 margins must be observed for all products. Also, note that when
 `symmetry' is FALSE, Linear demand is unlikely to be consistent with
@@ -560,51 +552,42 @@ where $r,p$ are vectors of product \emph{revenue} shares and prices, $\alpha$ is
 $B$ is a matrix of slopes\footnote{LA-AIDS differs from AIDS in that
   LA-AIDS substitutes the AIDS price index with Stone's price
   index. Since this version of LA-AIDS is without income effects,
-  Stone's price index is only used derive the elasticities.}.
+  Stone's price index is only used to derive the own- and cross-price elasticities.}.
 
 The LA-AIDS model yields the following own- and cross-price elasticities:
 \begin{align*}
-  \epsilon_{ii}=&-1 + \frac{\beta_{ii}}{r_i} + r_i(1+ \epsilon)  \\
-  \epsilon_{ij}=&\frac{\beta_{ij}}{r_i} + r_j(1+ \epsilon),
+  \epsilon_{ii}=&-1 + \frac{\beta_{ii}}{r_i} + r_i(1+ \epsilon),& \epsilon_{ii}<0  \\
+  \epsilon_{ij}=&\frac{\beta_{ij}}{r_i} + r_j(1+ \epsilon),& \epsilon_{ij}\ge 0
 \end{align*}
 
-where $\epsilon$ is the market elasticity of demand. LA-AIDS  also
-assumes that that
-$\epsilon\le 0$ and $|\epsilon| \le |\epsilon_{ii}|$ for all $i \in n$.
+where $\epsilon$ is the market elasticity of demand.
 
 As with the linear  demand system,
-the LA-AIDS model assumes that $B$ is symmetric and that diversion is
+the LA-AIDS model assumes that $B$ is symmetric, satisfies homogeneity of degree zero in prices, and that diversion is
 known. The LA-AIDS model, however,
 assumes that \emph{revenue} diversion, rather than \emph{quantity}
 diversion is observed.\footnote{If the `diversion' argument to \texttt{aids}
   is missing, \texttt{aids} assumes diversion according to revenue
-  share.} Under these two assumptions, there are $n+1$ unknown
-demand parameters ($n$ intercepts and $1$ slope) and up to $2n$ equations,
-in which case the system is over-identified. Therefore, only the
-margin information for a single
-firm's products is needed to estimate all the price coefficients.
+  share.} Under these two assumptions, there are $\frac{n(n+3)}{2}$ unknown
+demand parameters ($\frac{n(n-1)}{2}$ diagonal elements in $B$, $n$ diagonal elements,and $n$ intercepts) and up to $n(n+1)$ equations ($n(n-1)$ diversion equations, $n$ FOCs and  $n$ demand equations),
+in which case the system is over-identified.\footnote{In fact, it turns out that only one element of $B$ must be estimated.To see why, note that under symmetry, $\beta_{jj}=\frac{d_{ij}}{d_{ji}}\beta_{ii}$. Hence, if $\beta_{ii}$ is known, then the preceding equation indicates that all the $\beta_{jj}$s may be recovered. From here, the definition of diversion may be used to recover all the $\beta_{ij}s$.}
 
 One interesting feature of the LA-AIDS that distinguishes
-it from the other demand systems included in
-\atr{} is that LA-AIDS elasticities incorporate $\epsilon$, the
-market elasticity parameter. Roughly speaking, $\epsilon$ controls
+it from the linear and log-linear demand systems included in \atr{}
+is that LA-AIDS elasticities incorporate $\epsilon$, the
+market elasticity. Roughly speaking, $\epsilon$ controls
 the extent to which consumers substitute to products outside
 the $n$ products included in the simulation
-given a small change in market-wide product prices. While in some cases
+given a small change in market-wide product prices. Here, we assume that $\epsilon$ is a parameter whose value is not a function of product prices.\footnote{This assumption implies that customers substitute to  products outside of the simulation in response to price increases by all products in the simulation at the same rate pre- and post-merger. } While in some cases
 $\epsilon$ can be readily observed, in others it cannot. For the latter,
 the \verb@calcSlopes@ method (called by \verb@aids@) exploits the fact that there are more
-FOCs than unknowns to identify both the unknown demand parameter
-described above as well as $\epsilon$. This means that there are
-$n+2$ unknown parameters and therefore users must
-supply \verb@aids@ with at least two product margins in order to
-uncover estimates for both the unknown demand parameter and
-$\epsilon$.\footnote{$\epsilon$ and the unknown demand parameter must
-  also satisfy the inequality restrictions described above as well as
-  the $2n$ FOCs. The
-  \texttt{calcSlopes} method uses the \texttt{constrOptim} function to
-find the parameter estimates that satisfy these inequality
-constraints.} If either only a single product margin is observed,
-or $\epsilon$ is observed, then \verb@pcaids@ may be used in lieu of \verb@aids@ to calibrate
+equations than unknowns to identify both the unknown demand parameters
+described above as well as $\epsilon$. 
+
+The \verb@calcSlopes@ method, called by the \verb@aids@
+function to calibrate the AIDS parameters uses a minimum distance algorithm to find the $\epsilon$ and off-diagonal elements of $B$ that best satisfy i) all the FOCs for which there is sufficient information and ii) the diversion equations $d_{ij}=-\frac{\beta_{ji}}{\beta_{ii}}$. The $\beta_{ii}$s are recovered from the fact that $\sum_{j}d_{ij}=0$; customers must switch to a product included in the model.
+
+If only a single product's own-price elasticity and $\epsilon$ is observed, then \verb@pcaids@ may be used in lieu of \verb@aids@ to calibrate
 the LA-AIDS parameters.\footnote{The main difference between
   \texttt{pcaids} and  \texttt{aids} is that while \texttt{aids} requires
   users to supply revenue shares and at least two margins as inputs,  \texttt{pcaids} requires the
@@ -1138,8 +1121,7 @@ compensating variation.\footnote{For some demand systems (e.g. Logit
   reported. Compensating variation as well as equilibrium price levels
   for LA-AIDS models are reported only
   if the user supplied pre-merger prices. Compensating variation is
-  only reported for the Linear model if the matrix of slope
-  coefficients is symmetric.} \emph{Quantity} shares rather than
+  only reported for the Linear model if `symmetry' equals TRUE.} \emph{Quantity} shares rather than
 \emph{revenue} shares may be reported by setting \verb@summary@'s
 `revenue' argument equal to
  FALSE. Likewise, levels, either in units or in revenues, rather than shares may
@@ -1232,7 +1214,7 @@ to satisfy consumer choice theory will typically not satisfy the
 parameter restrictions implied by the Bertrand model. Consequently,
 there is no \verb@CV@ method defined for the Log-linear demand
 system. Similarly, the \verb@CV@ method returns an error if Linear
-demand is calibrated without imposing symmetry on the matrix of slope
+demand is calibrated without imposing symmetry and homogeneity of degree 0 in prices on the matrix of slope
 coefficients $B$ (i.e. setting `symmetry' equal to FALSE). Lastly,
 the \verb@CV@ method for LA-AIDS demand will return an error if LA-AIDS
 demand is calibrated without prices. This occurs because prices are
@@ -1613,34 +1595,20 @@ expected to yield efficiencies that are larger than CMCR,
 while others are expected to yield
 efficiencies that are smaller than CMCR.
 
-\section{Net UPP}
-Another measure included in \atr{} is net Upward Pricing Pressure
-(UPP). Net UPP measures how a merger would affect the merging parties'
+\section{Generalized Pricing Pressure}
+Another measure included in \atr{} is Generalized Pricing Pressure (GePP).\footnote{GePP (\cite{Jaffe2012}) extends Upward Pricing Pressure (UPP) -- introduced in \cite{Farrell2010a}--  to accommodate multi-product merging firms.} GePP   measures how a merger would affect the merging parties'
 incentives to change the prices of their products, after
-accounting for any merger-specific efficiencies.  The net UPP for all of firm $k$'s products following
-a merger with firm $l$ may be written as
+accounting for any merger-specific efficiencies.  The GePP for the merging parties' products may be written as
 
-\begin{align*}
-  UPP_k=&B_{kk,pre}^{-1}\left(\frac{diag(\Omega_{kl,pre})}{diag(\Omega_{kl,post})}\circ
-  B_{kl,post}(m_l\circ p_l)\right) - (1-m_k)\circ p_k\circ\Delta mc_k&&\\
-  B_{fg,s}=&D^q_{fg,pre}\circ((1/p_{f,pre})p_{g,pre}')\circ\Omega_{fg,s},& s
-  \in \{pre,post\};& f,g\in \{k,l\}\\
-\end{align*}
+\begin{equation*}
+  GePP= (B_{post}m_{post})/diag(\Omega_{post}) - (B_{pre}m_{pre})/diag(\Omega_{pre})
+\end{equation*}
 
-where $D^q_{fg,pre}$ is an $n_f\times n_g$ matrix whose
-$f,g$th element is the pre-merger quantity diversion from product $f\in n_f$ to product
-$g\in n_g$, $p_{f,pre}$ and $p_{g,pre}$
-are length-$n_f$ and length-$n_g$ vectors of prices, and
-$\Omega_{fg,s}$ is an $n_f\times n_g$ matrix of either pre- or
-post-merger ownership shares (typically equal to 1).
-$\Delta mc_k$ a length-$n_k$ vector containing the anticipated proportional changes in
-the marginal costs of firm $k$'s products due to the merger. Net UPP
+where $B_{pre},B_{post}$ and $m_{pre}$ are the same as in CMCR,and $m_{post}$ are pre-merger margins that incorporate anticipated cost reductions. GePP
 predicts that the acquiring firm will have an incentive to raise the
-price of product $i\in n_k$ when $UPP_k>0$.\footnote{\cite{Farrell2010a} introduce net UPP. \cite{Jaffe2012}
-demonstrate how net UPP can be extended to accommodate multi-product
-merging firms.}
+price of merging party product $i$ when $GePP_i>0$.
 
-\verb@upp.bertrand@ may be used to compute UPP under the assumption
+\verb@upp.bertrand@ may be used to compute GePP under the assumption
 that the merging parties are playing the Bertrand pricing game
 described earlier. Like \verb@cmcr.bertrand@, this function requires
 users to supply price and margin information for all of the merging parties' products, as well
@@ -1699,7 +1667,7 @@ Our aim here is to explore how a horizontal merger might affect the
 incentives of firms to collude. In particular, a horizontal merger can
 facilitate collusion if a firm with an incentive to collude acquires a
 \emph{maverick}, or a firm without such incentive. By doing this, the
-acquiring firm makes it easier to sustain cooperation amongst some of the
+acquiring firm makes it easier to sustain cooperation among some of the
 remaining firms. On the other hand, a horizontal merger can retard
 collusion if after the acquisition, a firm believes that it can make
 greater surplus by not cooperating with  some of the remaining
@@ -1825,7 +1793,7 @@ product in the coalition (i.e for each $j\in n_z$); the surplus firm
 $z$ earns from each product  $j\in n_z$ from
 colluding ($\Pi^c_{jzt}$) in period $t$, the surplus firm $z$ earns
 from each product  $j\in n_z$ upon defecting from
-the $Z$ coalition ($\Pi^d_{jzt}$)  in period $t$, and the preiod $t$ surplus a firm earns from
+the $Z$ coalition ($\Pi^d_{jzt}$)  in period $t$, and the period $t$ surplus a firm earns from
 each product  $j\in n_z$ after
 all firms have ``punished'' by reverting to Bertrand pricing $\Pi^b_{jzt}$.
 

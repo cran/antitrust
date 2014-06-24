@@ -19,7 +19,7 @@ setClass(
 
 
              nprods <- length(object@shares) # count the number of products
-
+             diversion <- object@diversion
 
              if(nprods != length(object@quantities) ||
                 nprods != length(object@margins) ||
@@ -30,15 +30,15 @@ setClass(
              if(any(object@quantities<0,na.rm=TRUE))          stop("'quantities' values must be positive")
              if(any(object@margins<0 | object@margins>1,na.rm=TRUE)) stop("'margins' values must be between 0 and 1")
 
-             if(!identical(diag(object@diversion),rep(-1,nprods))){ stop("'diversion' diagonal elements must all equal -1")}
 
-             if(any(abs(object@diversion[upper.tri(object@diversion)]) > 1) ||
-                any(abs(object@diversion[lower.tri(object@diversion)]) > 1)
-                ){
-                 stop("'diversion' off-diagonal elements must be between -1 and 1")}
+             if(!isTRUE(all.equal(diag(diversion),rep(-1,nprods)))){ stop("'diversions' diagonal elements must all equal -1")}
 
-             if(any(round(rowSums(object@diversion,na.rm=TRUE),4)>0)){ stop("'diversion' rows must sum to no more than 0")}
+             diag(diversion)=1
+             if(any(diversion > 1 | diversion<0)){
+                 stop("'diversions' off-diagonal elements must be between 0 and 1")}
 
+            
+             if (any(rowSums(object@diversion,na.rm=TRUE)>0,na.rm=TRUE)){ stop("'diversions' rows cannot sum to greater than 0")}
 
              if(nprods != nrow(object@diversion) ||
                 nprods != ncol(object@diversion)){
@@ -57,6 +57,8 @@ setClass(
                  stop("When 'symmetry' is FALSE, all product margins must be supplied")
                  }
 
+             return(TRUE)
+
          }
  )
 
@@ -73,14 +75,14 @@ setMethod(
      ownerPre   <- object@ownerPre
      symmetry  <- object@symmetry
 
-     nprods <- length(margins)
+     nprod <- length(margins)
 
 
 
       if(!symmetry){
 
 
-          slopes <- matrix(margins * prices,ncol=nprods, nrow=nprods,byrow=TRUE)
+          slopes <- matrix(margins * prices,ncol=nprod, nrow=nprod,byrow=TRUE)
           slopes <- diag(ownerPre)/rowSums(slopes * diversion * ownerPre) * quantities
           slopes <- -t(slopes * diversion)
 
@@ -88,32 +90,66 @@ setMethod(
       }
 
      else{
-         existMargins <- which(!is.na(margins))
 
-         revenues <- prices*quantities
-         k <- existMargins[1] ## choose a diagonal demand parameter corresponding to a provided margin
+       existMargins <- which(!is.na(margins))
 
-          minD <- function(s){
-              beta <- -s*diversion[k,]/diversion[,k]
-              slopesCand <- matrix(beta,ncol=nprods,nrow=nprods,byrow=TRUE)
-              slopesCand <- slopesCand*t(diversion)
-              elast <- t(slopesCand * tcrossprod(1/quantities,prices))
-
-              marginsCand <- -1 * as.vector(solve(elast * ownerPre) %*% (revenues * diag(ownerPre))) / revenues
-
-              measure <- sum((margins - marginsCand)^2,na.rm=TRUE)
-              return(measure)
-          }
+       revenues <- prices*quantities
+       k <- existMargins[1] ## choose a diagonal demand parameter corresponding to a provided margin
 
 
-         minSlope <- optimize(minD,c(-1e12,0))$minimum
+       minD <- function(betas){
 
-         slopes <-  -minSlope*diversion[k,]/diversion[,k]
-         slopes <- matrix(slopes,ncol=nprods,nrow=nprods,byrow=TRUE)
-         slopes <- slopes*t(diversion)
-     }
+         #enforce symmetry
+
+         B=diag(betas[1:nprod])
+         B[upper.tri(B,diag=FALSE)] <- betas[-(1:nprod)]
+         B=t(B)
+         B[upper.tri(B,diag=FALSE)] <- betas[-(1:nprod)]
+      
+         elast <- t(B * tcrossprod(1/quantities,prices))
+
+         marginsCand <- -1 * as.vector(solve(elast * ownerPre) %*% (revenues * diag(ownerPre))) / revenues
 
 
+         m1 <- margins - marginsCand
+         m2 <- as.vector(diversion +  t(B)/diag(B)) #measure distance between observed and predicted diversion
+
+
+         measure=c(m1,m2)
+
+         return(sum(measure^2,na.rm=TRUE))
+       }
+
+
+       ## Create starting values for optimizer
+
+       bKnown      =  -quantities[k]/(prices[k]*margins[k])
+       bStart      =   bKnown*diversion[k,]/diversion[,k]
+       bStart      =  -diversion*bStart
+       parmStart   =   c(diag(bStart),bStart[upper.tri(bStart,diag=FALSE)])
+
+
+
+       ## constrain diagonal elements so that D'b >=0
+       ## constrain off-diagonal elements to be non-negative.
+       
+       ui          =  diag(length(parmStart))
+       ui[1:nprod,1:nprod] = t(diversion)
+       
+       ci = rep(0,length(parmStart)) 
+       
+       
+       
+       bestParms=constrOptim(parmStart,minD,grad=NULL,ui=ui,ci=ci)
+
+       slopes = diag(bestParms$par[1:nprod])
+
+       slopes[upper.tri(slopes,diag=FALSE)] <- bestParms$par[-(1:nprod)]
+       slopes=t(slopes)
+       slopes[upper.tri(slopes,diag=FALSE)] <- bestParms$par[-(1:nprod)]
+      
+
+}
 
 
      dimnames(slopes) <- list(object@labels,object@labels)
@@ -161,7 +197,7 @@ setMethod(
 
      nprods <- length(object@quantities)
      if(missing(subset)){
-        subset <- rep(TRUE,nprods)
+         subset <- rep(TRUE,nprods)
      }
 
      if(!is.logical(subset) || length(subset) != nprods ){stop("'subset' must be a logical vector the same length as 'quantities'")}
@@ -389,7 +425,8 @@ linear <- function(prices,quantities,margins, diversions, symmetry=TRUE,
 
     if(missing(diversions)){
         diversions <- tcrossprod(1/(1-shares),shares)
-        diag(diversions) <- -1
+        diag(diversions) <- -1.000000001 #correct potential floating point issue
+        
     }
 
 

@@ -1,4 +1,4 @@
-e52741b20601157640fe948a283b23ad *DESCRIPTION
+af31f9a2d37990945cee825ca400ce07 *DESCRIPTION
 c89c06eba3ac53149c9b26dd6994ff87 *NAMESPACE
 f6ad2cbb997719edd9118ec68c66458e *R/Antitrust.R
 5eb2ae813d88898ff616224e5c5d03b8 *R/Bertrand.R
@@ -21,8 +21,8 @@ d891885a18bf6335aef8495b8e08acb3 *R/pcaidsNests.R
 aceda790b06c653ab6509ecf37beebbe *R/upp.R
 4e5a0cdb7539845dd79008ccd5c294ff *build/vignette.rds
 8cc75d3d03c256670046e3a87a137b66 *inst/doc/manual.R
-6bda09cd06187a2db94c5e8d302661aa *inst/doc/manual.Rnw
-480655a05421cfc351469e447d0a03b5 *inst/doc/manual.pdf
+e71ac33f0f277fbd54d8e133be066b59 *inst/doc/manual.Rnw
+5460a1d3d6ad0dc16449330a0f5a775c *inst/doc/manual.pdf
 0a76eb4e2781bdadeddc745053af3838 *man/AIDS-class.Rd
 a17d186c1a0bcfc4f63e0caa33c9d068 *man/Antitrust-class.Rd
 0b2b3061fed0bfe7d25271460f1dce51 *man/Auction2ndCap-class.Rd
@@ -60,6 +60,6 @@ bc7d1fc32a45d885f687666e037af813 *vignettes/CVSummary.tex
 cdc7e0d0219d8cd2fd033abfbb8072ca *vignettes/FunctionSummary.tex
 dc688c1d19b5fad603c029a399b3ddb0 *vignettes/Thumbs.db
 316e25e31251cbad7af309bbc0c9e055 *vignettes/antitrustbib.bib
-6bda09cd06187a2db94c5e8d302661aa *vignettes/manual.Rnw
+e71ac33f0f277fbd54d8e133be066b59 *vignettes/manual.Rnw
 2954e3117b9434af51397e5a3d525559 *vignettes/manual.ilg
 d41d8cd98f00b204e9800998ecf8427e *vignettes/manual.ind

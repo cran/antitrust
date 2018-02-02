@@ -35,7 +35,7 @@ setClass(
              if(any(object@prices<0,na.rm=TRUE))             stop("'prices' values must be positive")
 
 
-             if(any(margins<0 | margins>1,na.rm=TRUE)) stop("'margins' values must be between 0 and 1")
+             if(any(margins<0,na.rm=TRUE)) stop("'margins' values must be positive")
 
              if(!(is.matrix(object@ownerPre))){
                  ownerPre <- ownerToMatrix(object,TRUE)
@@ -43,11 +43,12 @@ setClass(
              else{ownerPre <- object@ownerPre}
 
 
-              isMargin    <- matrix(margins,nrow=nprods,ncol=nprods,byrow=TRUE)
-              isMargin[ownerPre==0]=0
-              isMargin    <- !is.na(rowSums(isMargin))
+              #isMargin    <- matrix(margins,nrow=nprods,ncol=nprods,byrow=TRUE)
+              #isMargin[ownerPre==0]=0
+              #isMargin    <- !is.na(rowSums(isMargin))
 
-             if(!any(isMargin)) stop("Insufficient margin information to calibrate demand parameters.")
+             #if(object@cls != "Auction2ndLogit" &&
+             #    !any(isMargin)){ stop("Insufficient margin information to calibrate demand parameters.")}
 
              if(nprods != length(object@priceStart)){
                  stop("'priceStart' must have the same length as 'shares'")}
@@ -66,12 +67,10 @@ setClass(
                  stop("elements of vector 'shares' must be between 0 and 1")
          }
 
-             if(!(
-                  (isTRUE(all.equal(sumShares,1))  && object@normIndex %in% 1:nprods) ||
-                   (sumShares < 1 && is.na(object@normIndex))
-                  )){
+             if(!(length(object@normIndex) == 1 && 
+                  object@normIndex %in% c(NA,1:nprods))){
                  stop("'normIndex' must take on a value between 1 and ",nprods,
-                      " if 'shares' sum to 1 , or NA if the sum of shares is less than 1")
+                      " or NA")
              }
 
              if(length(object@priceOutside) != 1 || object@priceOutside<0
@@ -114,10 +113,10 @@ setMethod(
 
               ## identify which products have enough margin information
               ##  to impute Bertrand margins
-              isMargin    <- matrix(margins,nrow=nprods,ncol=nprods,byrow=TRUE)
-              isMargin[ownerPre==0]=0
-              isMargin    <- !is.na(rowSums(isMargin))
-
+              #isMargin    <- matrix(margins,nrow=nprods,ncol=nprods,byrow=TRUE)
+              #isMargin[ownerPre==0]=0
+              #isMargin    <- !is.na(rowSums(isMargin))
+              
 
               ## Minimize the distance between observed and predicted margins
               minD <- function(alpha){
@@ -127,22 +126,23 @@ setMethod(
                   diag(elast) <- alpha*prices + diag(elast)
 
 
-                  elast      <- elast[isMargin,isMargin]
-                  revenues   <- revenues[isMargin]
-                  ownerPre   <- ownerPre[isMargin,isMargin]
-                  margins    <- margins[isMargin]
+                  #elast      <- elast[isMargin,isMargin]
+                  #revenues   <- revenues[isMargin]
+                  #ownerPre   <- ownerPre[isMargin,isMargin]
+                  #margins    <- margins[isMargin]
 
-                  #marginsCand <- -1 * as.vector(ginv(elast * ownerPre) %*% (revenues * diag(ownerPre))) / revenues
-                  #measure <- sum((margins - marginsCand)^2,na.rm=TRUE)
+                  
+                  marginsCand <- -1 * as.vector(ginv(elast * ownerPre) %*% (revenues * diag(ownerPre))) / revenues
+                  measure <- sum((margins - marginsCand)^2,na.rm=TRUE)
 
-                  measure <- revenues * diag(ownerPre) + as.vector((elast * ownerPre) %*% (margins * revenues))
-                  measure <- sum(measure^2,na.rm=TRUE)
+                  #measure <- revenues * diag(ownerPre) + as.vector((elast * ownerPre) %*% (margins * revenues))
+                  #measure <- sum(measure^2,na.rm=TRUE)
 
                   return(measure)
               }
 
-              minAlpha <- optimize(minD,c(-1e6,0))$minimum
-
+              minAlpha <- optimize(minD,c(-1e6,0),
+                                   tol=object@control.slopes$reltol)$minimum
 
               meanval <- log(shares) - log(idxShare) - minAlpha * (prices - idxPrice)
 
@@ -208,7 +208,7 @@ setMethod(
      }
 
      ## Find price changes that set FOCs equal to 0
-     minResult <- BBsolve(priceStart,FOC,quiet=TRUE,...)
+     minResult <- BBsolve(priceStart,FOC,quiet=TRUE,control=object@control.equ,...)
 
       if(minResult$convergence != 0){warning("'calcPrices' nonlinear solver may not have successfully converged. 'BBsolve' reports: '",minResult$message,"'")}
 
@@ -247,7 +247,7 @@ setMethod(
      alpha    <- object@slopes$alpha
      meanval  <- object@slopes$meanval
 
-     outVal <- ifelse(object@shareInside<1, exp(alpha*object@priceOutside), 0)
+     outVal <- ifelse(object@shareInside<1, 1, 0)
 
      shares <- exp(meanval + alpha*prices)
      shares <- shares/(outVal+ sum(shares,na.rm=TRUE))
@@ -310,10 +310,12 @@ setMethod(
 
               alpha       <- object@slopes$alpha
               meanval     <- object@slopes$meanval
-
-
-              VPre  <- sum(exp(meanval + object@pricePre*alpha),na.rm=TRUE)
-              VPost <- sum(exp(meanval + object@pricePost*alpha),na.rm=TRUE)
+              subset <- object@subset
+      
+              outVal <- ifelse(object@shareInside<1, 1, 0)
+              
+              VPre  <- sum(exp(meanval + object@pricePre*alpha))  + outVal
+              VPost <- sum(exp(meanval + object@pricePost*alpha)[subset] ) + outVal
 
               result <- log(VPost/VPre)/alpha
 
@@ -358,17 +360,16 @@ setMethod(
 
  })
 
-
-
-
 logit <- function(prices,shares,margins,
                   ownerPre,ownerPost,
-                  normIndex=ifelse(sum(shares)<1,NA,1),
+                  normIndex=ifelse(isTRUE(all.equal(sum(shares),1,check.names=FALSE)),1, NA),
                   mcDelta=rep(0,length(prices)),
                   subset=rep(TRUE,length(prices)),
                   priceOutside = 0,
                   priceStart = prices,
                   isMax=FALSE,
+                  control.slopes,
+                  control.equ,
                   labels=paste("Prod",1:length(prices),sep=""),
                   ...
                   ){
@@ -383,9 +384,17 @@ logit <- function(prices,shares,margins,
                   mcDelta=mcDelta,
                   subset=subset,
                   priceOutside=priceOutside,
-                  priceStart=priceStart,shareInside=sum(shares),
+                  priceStart=priceStart,
+                  shareInside=ifelse(isTRUE(all.equal(sum(shares),1,check.names=FALSE)),1,sum(shares)),
                   labels=labels)
 
+    if(!missing(control.slopes)){
+      result@control.slopes <- control.slopes
+    }
+    if(!missing(control.equ)){
+      result@control.equ <- control.equ
+    }
+    
     ## Convert ownership vectors to ownership matrices
     result@ownerPre  <- ownerToMatrix(result,TRUE)
     result@ownerPost <- ownerToMatrix(result,FALSE)

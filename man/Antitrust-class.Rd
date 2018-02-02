@@ -4,6 +4,7 @@
 \alias{Antitrust-class}
 \alias{matrixOrList-class}
 \alias{matrixOrVector-class}
+\alias{characterOrList-class}
 %\alias{cmcr,Antitrust-method}
 %\alias{diversion,Antitrust-method}
 %\alias{hhi,Antitrust-method}
@@ -32,7 +33,8 @@ Objects can be created by calls of the form \code{new("Antitrust", ...)}.
     \item{\code{ownerPre}:}{ A k x k matrix of pre-merger ownership shares.}
     \item{\code{ownerPost}:}{ A k x k matrix of post-merger ownership shares.}
     \item{\code{labels}:}{A length k vector of labels.}
-
+    \item{\code{control.slopes}:}{A list of  \code{\link{optim}}  control parameters passed to the calibration routine optimizer (typically the \code{calcSlopes} method).}
+    \item{\code{control.equ}:}{A list of  \code{\link[BB]{BBsolve}} control parameters passed to the non-linear equation solver (typically the \code{calcPrices} method).}
   }
 }
 \section{Methods}{
@@ -53,8 +55,8 @@ Objects can be created by calls of the form \code{new("Antitrust", ...)}.
       the percentage change in prices due to the merger. }
      }}
 
-\section{The \dQuote{matrixOrList} and \dQuote{matrixOrVector} Classes}{
-The \dQuote{matrixOrList} and \dQuote{matrixOrVector} classes are
+\section{The \dQuote{matrixOrList}, \dQuote{matrixOrVector} and \dQuote{characterOrList} Classes}{
+The \dQuote{matrixOrList},\dQuote{matrixOrVector} and \dQuote{characterOrList} classes are
 virtual classes used for validity checking in the \sQuote{ownerPre} and
 \sQuote{ownerPost} slots of \dQuote{Antitrust} and the \sQuote{slopes} slot in
 \dQuote{Bertrand}.

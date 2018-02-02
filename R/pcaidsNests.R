@@ -119,14 +119,16 @@ setMethod(
                   elast <- t(Bcand/shares) + shares * (mktElast + 1)
                   diag(elast) <- diag(elast) - 1
 
-                  marginsCand <- -1 * as.vector(ginv(elast * ownerPre) %*% (shares * diag(ownerPre))) / shares
+                  marginsCand <- -1 * as.vector(solve(elast * ownerPre) %*% (shares * diag(ownerPre))) / shares
 
                   measure <- sum((margins - marginsCand)^2,na.rm=TRUE)
 
                   return(measure)
               }
 
-              minNests <- optim(object@nestsParms,minD,method ="L-BFGS-B",lower=0,upper=1)$par
+              minNests <- optim(object@nestsParms,minD,method ="L-BFGS-B",
+                                lower=0,upper=1,
+                                control=object@control.slopes)$par
 
               B <- calcB(minNests)
 
@@ -158,6 +160,8 @@ pcaids.nests <- function(shares,margins,knownElast,mktElast=-1,
                          priceStart=runif(length(shares)),
                          isMax=FALSE,
                          nestsParmStart,
+                         control.slopes,
+                         control.equ,
                          labels=paste("Prod",1:length(shares),sep=""),
                          ...){
 
@@ -184,6 +188,13 @@ pcaids.nests <- function(shares,margins,knownElast,mktElast=-1,
                   ownerPre=ownerPre,ownerPost=ownerPost,knownElastIndex=knownElastIndex,
                   priceStart=priceStart,labels=labels)
 
+    if(!missing(control.slopes)){
+      result@control.slopes <- control.slopes
+    }
+    if(!missing(control.equ)){
+      result@control.equ <- control.equ
+    }
+    
     ## Convert ownership vectors to ownership matrices
     result@ownerPre  <- ownerToMatrix(result,TRUE)
     result@ownerPost <- ownerToMatrix(result,FALSE)

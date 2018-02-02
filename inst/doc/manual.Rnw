@@ -126,7 +126,7 @@ outputs and illustrate the sensitivity of each model to those inputs.
 %changes. Users can then report a range of plausible outputs in their analysis.
 
 Second, none of the parameters calibrated by \atr{} may be used
-in statistical hypothesis testing. In other words, while the economic
+in frequentist statistical hypothesis testing. In other words, while the economic
 models in \atr{} may be used to generate reliable estimates of the
 effects of the merger, statistical tests cannot be used to
 determine the accuracy of these estimates. Accomplishing this requires
@@ -231,7 +231,9 @@ The FOCs for all products may be stacked and then
 represented using the following matrix notation:
 \begin{align}
   \label{eqn:FOC}
-  (r\circ diag(\Omega)) + (E\circ\Omega)'(r \circ m)=&0
+  (r\circ diag(\Omega)) + (E\circ\Omega)'(r \circ m)=0\\
+  \intertext{rearranging yields}
+  m_{Bertrand}= -\{(E\circ\Omega)'^{-1}(r\circ diag(\Omega))\} \circ \frac{1}{r}
 \end{align}
 
 where $r$ and $m$ are $n$-length vectors of revenue shares
@@ -254,6 +256,7 @@ and 0 otherwise. Under partial ownership, the columns of the matrix formed from 
 unique rows of $\Omega$ must sum to 1.
 `$diag$' returns the diagonal of a square matrix and `$\circ$' is the Hadamard (entry-wise) product operator.
 
+The solution to system \ref{eqn:FOC} yields equilibrium prices conditional on the ownership structure $\Omega$. A (partial) merger is modeled as the solution to system  \ref{eqn:FOC} where $\Omega$ is changed to reflect the change in ownership.  
 
 \subsection{Adding Exogenous Capacity Constraints}
 The Bertrand model described above assumes that products are produced
@@ -640,7 +643,7 @@ products.\footnote{Note that these margins are in addition to the margin
 %argument to specify  a length-n vector identifying which nest each
 %product falls into.
 
-\subsection{Logit Demand}
+\subsection{Logit Demand\label{subsec:nblogit}}
 The Bertrand model with Logit demand may be implemented using the
 \verb@logit@ function.
 
@@ -795,7 +798,7 @@ purchase an ``outside'' good. This works almost the same in
 revenue shares is less than 1, the outside good is placed in its own nest with its nesting
 parameter normalized to 1.
 
-\subsubsection{(Nested) Logit With Unobserved Outside Share}
+\subsubsection{(Nested) Logit With Unobserved Outside Share\label{sec:logitALM}}
 The Bertrand model with (nested) Logit demand and unobserved outside share may be
 implemented using the (\verb@logit.nests.alm@) \verb@logit.alm@ function.
 
@@ -1359,13 +1362,175 @@ can be often be remedied by supplying additional margin
 information, supplying margin information for products with
 disparate market shares, or supplying the market elasticity parameter directly.
 
-\chapter{Auction Models}
-The current auction capabilities of \atr{} support calibrating model parameters and simulating the effects of a merger in a
-2nd price procurement auction where the buyer sets a reserve price and
-capacity constrained bidders offer  a single unit of a homogeneous
-product\footnote{See \cite{WaehrP2003} for further details.}.
+\chapter{The Cournot Quantity Game}
+%Introduction to the Cournot game here
+Another model included in \atr{} is the Cournot quantity game.  This version of the game assumes that multi-plant firms with distinct, increasing marginal costs producing multiple products 
+simultaneously set plant output for each product to maximize their
+profits. All firms producing a particular product are assumed to be undifferentiated. In this model, quantities are \emph{strategic substitutes} in the sense that decreasing the quantity of
+one product causes some customers to switch to competing manufacturers, raising
+their quantities and profits. Ultimately, it is the magnitude of these lost sales that, at
+the margin, dissuades firms from reducing their output further .
 
-\section{The Game}
+Similar to the Bertrand model, mergers are modeled by assuming that the merging parties'
+plants are placed under common ownership, which allows the
+merged entity to \emph{recapture} some of the sales that would
+otherwise be lost to competitors. As a result, the Cournot model (for some demand
+systems) predicts
+that absent any efficiencies affecting the marginal cost of
+production, the prices of all products produced by the merging parties will
+increase, possibly by a small amount.
+
+Because  all firms are manufacturing an identical version of the product, this version of the Cournot model allows firms post-merger to start or stop producing other products. This model does not allow for firms to engage  in some forms of price discrimination.\footnote{In particular, this version of the Bertrand
+  model does not accommodate non-linear pricing, such as is used in 2nd
+  or 3rd degree price discrimination.}
+\section{The Game\label{sec:CournotGame}}
+
+
+Suppose that there are $K$ firms in a
+market, each producing a subset $J_k$ of $J$ products. Further, suppose that  that each of the $k \in K$ firms manufactures its $J_k$ products at $n_k$
+plants.  Let $n = \sum_{k\in K} n_k$ denote the total number of plants producing any of the $J$ products. The Cournot model assumes that firms
+simultaneously set the amount of each product produced at each plant in order to maximize
+their profits. This model also assumes that all firms can perfectly observe each
+others' quantities, and costs, as well as the demand for each product.
+
+Functions in \atr{}'s Cournot model  also adopt the additional assumption that each firm's plant has its own  distinct marginal cost
+technology.
+
+\subsection{The Mathematical Model}
+Firm $k \in K$ chooses product output at each plant $\{q_j^r\}_{\substack{j\in j_k,\\ r\in n_k}}$ so as to maximize profits. Mathematically, firm $k$ solves:
+
+\begin{align*}
+\max_{{\{q_j^r\}}_{\substack{j\in J_k,\\ r\in n_k}}} &, \sum_{\substack{j\in J_k,\\ r\in n_k}}p_jq_j^r - \sum_{r\in n_k}c^r(q^r)\\
+\intertext{subject to}
+  & q_j^r \ge 0,&\\
+  & q^r = \sum_{j \in J_k} q_j^r &\\
+\end{align*}
+
+where $p_j$, the price sold of product $i$,  is assumed to
+be a twice differentiable function of \emph{all} firm quantities with $\frac{\partial p_j}{\partial q_j^r}< 0$ for all plants and firms . Likewise, additively separable plant variable costs $c^r$   assumed to be twice differentiable with $\frac{\partial c^r}{\partial q_j^r}> 0$ .
+
+Differentiating profits with respect to each $q_j^r$  yields the following first order conditions (FOCs):
+
+\begin{align}
+  \partial q_j^r&\equiv p_j + q_j^r\frac{\partial p_j}{\partial q_j^r} - \frac{\partial c^r}{\partial q_j^r}=0& \mbox{ for all $j\in J_k$, $r\in n_k$}\label{eqn:cournotFOC} 
+\end{align}
+
+
+\section{Calibrating Model Demand and Cost Parameters \label{sec:cournotcal}}
+
+The Cournot model can yield different equilibrium quantity and price predictions depending on 1) the curvature of plant variable costs and 2) the curvature of demand. \atr{} allows users to explore the consequences of different cost and demand assumptions.
+
+Currently, \verb@cournot@ contains two different ways to specify plant costs. First, users can set the `cost' option equal to a $n$-length character vector whose values are either equal to ``linear" for linear marginal costs ($\frac{\partial c^r}{\partial q_j^r}= 0.5\gamma_r\sum_{j\in n_r}q_j^r$) or ``constant" for constant marginal costs ($\frac{\partial c^r}{\partial q_j^r}= \gamma_r$) . When the `cost' option is employed, \verb@cournot@'s \verb@calcSlopes@ method uses observed costs (implied by predicted margins and prices) and prices to calibrate plant-level cost parameters $\gamma_r$.    
+
+Alternatively, users can specify both plant level marginal and variable costs. Marginal costs may be specified by setting   the `mcfunPre' argument equal to a length $n$ list of functions that each take as an input the vector of product quantities produced at a plant and then return the marginal cost associated with producing that level of output at that plant. Likewise, the `vcfunPre' argument can be similarly used to specify plant-level variable costs. Note that when marginal costs and variable costs are specified in this manner, \verb@cournot@ makes no attempt to calibrate any parameters on the cost side. 
+
+Currently, \verb@cournot@ allows users to specify that product demand is either linear ($p_j=b_j + a_j\sum_{k\in n}q_j^k$) or log-linear ($\ln(p_j)=b_j + a_j\ln(\sum_{k\in n}q_j^k)$) Users can specify product demand by setting \verb@cournot@'s `demand' argument equal to a $j$-length character vector equal to either ``linear" for linear demand or ``log" for log-linear demand. 
+
+\section{Simulating Merger Effects\label{sec:cournotcal}}
+
+\subsection{Summarizing Results}
+
+The \verb@summary@ method may be used to summarize the results of a
+merger between two firms. By default, the \verb@summary@ method reports pre- and post-merger equilibrium prices and quantities for each product included in the simulation. Also reported is the compensating marginal cost reduction (CMCR) as well as the change in consumer surplus from the merger. Setting the `market' argument equal to FALSE returns plant-level equilibrium price effects.
+
+\subsection{Simulating Price Effects With Marginal Cost Efficiencies}
+Absent efficiencies, the Cournot model with the demand systems
+described here will almost always produce a (possibly negligible)
+post-merger price increase among substitutes. These price increases, however, can be
+offset by merger-specific efficiencies that decrease the \emph{incremental}
+costs of some of the merging firms' products.\footnote{Costs that are
+  not strictly increasing with a product's output (i.e. fixed or sunk
+  costs) do not affect the price setting behavior of firms in a
+  Bertrand pricing game. }
+
+All the functions discussed above allow users to evaluate these
+efficiencies in two different ways. First, all of these functions
+contain the `mcDelta' argument, which allows users to specify the
+proportional change in a product's marginal costs that may result from
+a merger. These cost changes are factored into the
+post-merger price equilibrium calculation made by the
+\verb@calcPrices@ method. If changes in marginal costs are not expected to be proportional,
+then users can instead set the `mcfunPre' and `mcfunPost' arguments  
+equal to lists containing functions that return each plants' pre- and post-merger marginal costs\footnote{Users will also have to specify plant-specific variable costs as well using the `vcfunPre' and `vcfunPost' arguments.}. 
+
+Second, users can call the \verb@cmcr@ method on the output of any
+of the functions described above. This method computes the
+compensating marginal cost reduction (CMCR) on the merging parties'
+products. CMCR is the percentage decrease in the marginal costs of
+the merging parties' products necessary to prevent a post-merger price
+increase. See the \verb@cmcr@ help page for further details.
+
+\subsection{Simulating Price Effects With Capacity Constraints}
+
+The Cournot model allows users to impose capacity constraints that may potentially change as a result of the merger. 
+The ``capacitiesPre" argument allows users to specify a vector of pre-merger plant-specific capacity constraints (default is \textbf{Inf}, or no constraint).  The ``capacitiesPost" argument allows users to specify a vector of post-merger constraints (default is ``capacitiesPre"). 
+
+\subsection{Excluding Products or Plants}
+
+By default, the Cournot model calculates a merger's effects
+under the assumption that the acquisition does not change the set of
+products available to consumers or the set of plants that are in production. A merger's effects, however, may
+differ if the merger induces either the merging parties or another
+market participant to eliminate some products from their portfolio or to alter the mix of plants used in producing their products.
+
+To accommodate the possibility that some products or plants may be removed from
+the market following an acquisition, all the constructor functions
+described above have a `productsPre' and a `productsPost' arguments that allows users to specify
+an $n$ by $J$ logical matrix which equals TRUE  if a product produced at a particular plant should be
+included in the merger simulation and FALSE otherwise. By default, `productsPre' equals TRUE if the `quantities' is not NA, and FALSE otherwise, while `productsPost' equals `productsPre'.
+
+\subsection{Measuring Changes In Consumer Welfare}
+
+The Cournot model has a \verb@CV@ method which may be used to
+calculate the change in consumer surplus from a merger.
+
+\subsection{Allowing For First-Mover Advantage}
+The package contains a \verb@stackelberg@ function that is similar to \verb@cournot@, but also allows for one or more firms to be designated as output leaders for certain products. Output leaders are assumed to set their output levels first, and conditional on the leaders' output decisions, output followers (defined as everyone who is not a leader) chooses their levels of output. The  \verb@stackelberg@ function contains four additional arguments: `isLeaderPre' and `isLeaderPost' for setting which firms are leaders and which are followers, and `dmcfunPre' and `dmcfunPost' for specifying the derivative of a plant's marginal cost (only necessary when marginal and variable costs are also specified).
+
+
+
+\chapter{Auction Models}
+Currently, \atr{} has the ability to calibrate model parameters and simulate the effects of a merger in a:
+
+\begin{itemize}
+\item 2nd price procurement auction where the buyer sets a reserve price and
+capacity constrained bidders offer  a single unit of a homogeneous
+product,
+\item 2nd score procurement auction with differentiated products, and a 
+\item 1st score procurement auction with differentiated products. 
+\end{itemize}
+
+In a \href{https://en.wikipedia.org/wiki/Vickrey_auction}{2nd \emph{price} procurement auction}, sellers submit their offers to supply a \emph{homogeneous} product and the seller with the lowest offer wins but is paid the next lowest offer. 2nd price auctions have a number of interesting properties. In particular, it can be shown that:
+
+\begin{itemize}
+\item the dominant strategy in a 2nd price auction is for each seller to offer their product at marginal cost,
+\item the dominant strategy for a seller with a portfolio of products is to only offer the buyer the product in their portfolio with the lowest cost,
+\item the winner of the 2nd price auction is always the product with the lowest cost,
+\item the incremental surplus of the winning product, defined as the difference in cost between the least costly and next-most costly products, goes entirely to the seller,
+\item \textbf{absent efficiencies, horizontal mergers do no affect total surplus only consumer surplus.}
+\end{itemize}
+
+A 2nd \emph{score} procurement auction generalizes a 2nd price auction by allowing sellers to offer \emph{differentiated} products and allowing buyers to choose the product with the highest score. Instead of being paid the 2nd lowest cost, the seller with the highest score is paid the difference between the value of her product and the surplus (value less manufacturing cost) of the product with the next highest score. All the functions in \atr{} assume that the non-price characteristics of a seller's products are fixed, which means that sellers  strategies are restricted to i) which products to offer a particular buyer and ii) what price to offer the products at.
+
+All of the properties of a 2nd price auction generalize to a 2nd score auction. In particular:
+
+\begin{itemize}
+\item the dominant strategy in a 2nd score auction is for each seller to offer their product at marginal cost,
+\item the dominant strategy for a seller with a portfolio of products is to only offer the buyer the product in their portfolio with the highest surplus,
+\item the winner of the 2nd price auction is always the product with the highest surplus,
+\item the incremental surplus of the winning product, defined as the difference in surplus between the highest scored and next-most highest scored products, goes entirely to the seller,
+\item \textbf{absent efficiencies, horizontal mergers do no affect total surplus only consumer surplus.}
+\end{itemize}
+
+In contrast to a 2nd score procurement auction, sellers in a 1st score procurement auction simply receive their offer if they win. It can be shown that a first score auction where non-price product characteristics are fixed is equivalent to a Nash-Bertrand pricing game where buyers purchase only a single product.\footnote{See \cite{miller2014} for further details.} Consequently, the models discussed in the chapter on the Bertrand Pricing Game, may also be used to explore the effects of mergers in first price auctions.
+
+The remainder of this chapter explores \atr{}'s implementation of 2nd score auctions
+
+\section{2nd Price Auction with Capacity Constraints}
+Here, we describe a 2nd price procurement auction where the buyer sets a reserve price and capacity constrained bidders offer  a single unit of a homogeneous
+product.\footnote{\cite{WaehrP2003} for further details.}. This auction model may be executed using \atr{}'s \verb@auction2nd.cap@ function.
+
+\subsection{The Game}
 Suppose that a buyer is interested in either purchasing a single unit of a
 homogeneous product from one of the $K$ firms who supply the product,
 or supplying the product herself. Although the product is homogeneous,
@@ -1448,7 +1613,7 @@ c_0 &=  r^{\ast} + \frac{\sum\limits_{k\in K} ([1-F(r^{\ast})]^{\bar{t}-t_k} - [
 Note that this last equation implies that the buyer has an incentive
 to set its optimal reserve below its self-supply cost.
 
-\section{Calibrating Model Parameters}
+\subsection{Calibrating Model Parameters}
 In this model, we will assume that the user observes firm capacities,
 \emph{some} price and margin information, and possibly the auction
 reserve price or the proportion of times a buyer opts to
@@ -1456,7 +1621,7 @@ self-supply. The unknowns are the seller cost distribution
 $F(c)$, the buyer's cost of self-supply $c_0$, and if not observed,
 the auction's reserve price.
 
-\subsection{Selecting a Cost Distribution}
+\subsubsection{Selecting a Cost Distribution}
 
 It can be shown that under this models' assumptions, it must be the
 case that $F(c)=1-\exp{k(c)}$. Common distributions that satisfy this
@@ -1492,7 +1657,7 @@ distributions with fewer parameters. This flexibility comes at a
 cost; the user must supply additional information in order to
 calibrate these additional parameters.
 
-\subsection{Identifying Moments}
+\subsubsection{Identifying Moments}
 Once a distribution has been selected, the distribution parameters as
 well as the reserve price (if not supplied) must be calibrated from
 user-supplied prices and margins.  To accomplish this, first let $\hat{p_k}$ and $\hat{c_k}$ denote firm $k$'s
@@ -1512,8 +1677,9 @@ s_0&= 1-G(r;\bar{t})
 Note that in order to calibrate the model parameters, the number of
 moments with user-supplied information must be greater than the number
 of distribution parameters plus the reservation price (if not supplied).
-\section{Simulating Merger Effects  (\textbf{experimental})}
-\subsection{Summarizing Results}
+
+\subsection{Simulating Merger Effects  (\textbf{experimental})}
+\subsubsection{Summarizing Results\label{subsec:nbsummary}}
 The auction model's \verb@summary@ method may be used to summarize the results of a
 merger between two firms for a given cost distribution. By default, the \verb@summary@ method
 reports pre- and post-merger equilibrium prices and \emph{quantity}
@@ -1522,12 +1688,142 @@ pre- and post-merger equilibrium prices and quantities may be reported by settin
 `exAnte' argument equal to TRUE. Calibrated distribution parameters may be reported by setting
 \verb@summary@'s `parameters' argument equal to TRUE. The number of significant digits can be
 altered using the `digits' argument.
-\subsection{Simulating Price Effects With Efficiencies}
+\subsubsection{Simulating Price Effects With Efficiencies}
 By default,  \verb@auction2nd.cap@ assumes that a merger places the
 parties' capacities under common ownership and that the capacities of
 all other firms in the market are unaffected by the acquisition. Both of these
 assumptions may be modified with the `mcDelta' argument, which allows users to specify the proportional changes in each firm's
 capacities due to the merger.
+
+
+
+\section{2nd Score Auction with Differentiated Products}
+
+Here, we describe a 2nd score procurement auction where the features of the products -- including cost -- are both horizontally and vertically differentiated. This section is largely based on \cite{miller2014}. This auction model may be executed using \atr{}'s \verb@auction2nd.logit@ function.
+
+\subsection{The Game}
+Suppose that a buyer is interested in either purchasing a single unit of a
+differentiated product from one of $K$ firms, each of whom manufacture  $J_k,k\in K$ variants of the product,
+or in supplying the product herself. Let $J=\bigcup_k^KJ_k$ denote the set of all products produced by any of the $K$ firms. Not only do each of the variants have different characteristics, the cost of producing these products may also differ. In particular, suppose that variant $J_k,k\in K$  uses constant marginal
+cost technology $c_{J_k}\ge 0$ to produce the product.\footnote{Throughout, we abuse the notation slightly by
+  treating variables like $K$ as both the set of firms as well as the
+  number of firms.}  
+
+Let the utility that a buyer receives from product $j\in J$ with offer $p_j$ equal  to 
+\begin{align*}
+  V_j(p_j)=& \overline{V}_j(p_j) + \epsilon_j &\\
+ \overline{V}_j(p_j) =& \delta_j + \alpha p_j,&\alpha<0,\\
+\end{align*}
+
+where, $\overline{V}_j$ represents an index of ``vertical" quality differentiation that decomposed into a non-offer component $\delta_j$ and an offer component $\alpha p_j$.  In addition, $\epsilon_j$ represents a buyer-specific idiosyncratic shock to utility (i.e. ``horizontal" quality differentiation). Without loss of generality, We will assume that these  shocks are independently drawn from  the distribution $F$, with mean 0 and variance 1.\footnote{Equivalently, $-\frac{V_j(p_j)}{\alpha}$ is a random variable with location $-\frac{\overline{V}_j(p_j)}{\alpha}$ and scale $-\frac{1}{\alpha}$.} We will also assume that at the start of the auction, $\epsilon_j$ is known to $j$'s manufacturer but is not known to  any other sellers.
+
+The buyer is assumed to employ a 2nd score auction to determine which product she will purchase. In this auction
+format, each firm submits an offer and the firm with the highest score (which may be the buyer if the buyer self-supplies)  wins the auction
+but pays the difference between the value of the highest scoring product and the value of the next-highest scoring product, less that seller's offer on that product. It can be shown that it is a \emph{dominant strategy for each firm to offer the product with the highest surplus in its portfolio to the buyer at cost}.  
+
+Let $z_A=\max_{k\in A}{V_k(c_k)}$ denote the the maximum surplus available from any product $k\in A\subseteq J$. It can be shown that the following must hold when firm $k\in K$ wins with variant $j\in J_k$
+
+\begin{itemize}
+\item the probability that $j$ wins is
+\begin{align}
+ \label{eqn:auc2.1}
+ s_j &\equiv 1-Pr(V_j < z_{k \not\in J_k});
+\end{align}
+\item the expected price conditional on $j$ winning is
+\begin{align}
+\label{eqn:auc2.2}
+ E[p_j|\text{$j$ wins}]= c_j + E[z_J|\text{$j$ wins}] - E[z_{k \not\in J_k}|\text{$j$ wins}]; 
+\end{align}
+\item subtracting $c_j$ from both sides of \ref{eqn:auc2.2} yields the expected profit margin conditional on $j$ winning:
+\begin{align}
+\label{eqn:auc2.3}
+ E[m_j|\text{$j$ wins}]=& E[z_J|\text{$j$ wins}] - E[z_{k \not\in J_k}|\text{$j$ wins}] 
+\end{align}
+\end{itemize}
+
+\subsubsection{Merger analysis}
+Suppose that firm $k\in K $ acquires a portfolio of products $J_r$ produced by firm $r\in K$.\footnote{Note that $k$ could either acquire $r$'s entire product line or just a subset. } 
+
+\paragraph{Retention of all products.}
+If post-merger $k$ does not discontinue any of $r$'s products, then it can be shown that it is still a dominant strategy for $k$ to only offer a buyer the highest surplus product, and that consequently, the acquisition does not affect which product will ultimately be selected \emph{ex-ante}. Consequently,  the merger does not the decrease \emph{ex-ante} output and therefore leaves total surplus unchanged. The merger, will, absent variable cost efficiencies lead to a price increase that exactly equals the  decrease in consumer surplus. The \emph{ex-ante} magnitude of the price increase (and corresponding decrease in consumer surplus) when $j\in J_k \cup J_r$ win the auction is:
+
+
+\begin{align}
+ \label{eqn:auc2.pricedeltacond}
+E[\Delta p_j|\text{j wins}] = E[m_j^{post}|\text{j wins}] - E[m_j^{pre}|\text{j wins}].
+\end{align}
+
+The expected change in consumer surplus-- which, absent efficiencies  also equals the weighted average price effect-- may be calculated by taking the share- weighted average of equation \ref{eqn:auc2.pricedeltacond}:
+
+\begin{align}
+ \label{eqn:auc2.pricedelta}
+E[\Delta p] = \sum\limits_{j\in J_k\cup J_r}s_jE[\Delta p_j|\text{$j$ wins}]
+\end{align}
+
+
+where $s_j$ is given by \ref{eqn:auc2.2}
+
+
+\subsection{Calibrating Model Demand and Cost Parameters}
+For this model, we will assume that users observe firm shares,
+prices, and \emph{some} margin information. From the user's perspective, the unknowns are the buyers'  distribution of valuations ($F$), the constant marginal costs ($c_j$) and the components of a buyer's mean valuation (i.e. the $\delta_j$s and $\alpha$).
+
+In order to calibrate this model with the limited information available, we will need to assume a functional form for $F$. Currently, \atr{} assumes that $F$ follows a \href{http://en.wikipedia.org/wiki/Gumbel\_distribution}{Gumbel} distribution. Under this distributional assumption, 
+
+
+\begin{itemize}
+\item the probability that $j$ wins is
+\begin{align}
+ \label{eqn:auc2.4}
+ s_j = \frac{\exp(\overline{V}_j(c_j))}{\sum\limits_{k \in J}\exp(\overline{V}_k(c_k))}
+\end{align}
+\item the expected value of the maximum for products in $A \subseteq J $ is
+\begin{align}
+\label{eqn:auc2.5}
+ E[z_A]=-\alpha^{-1}\log\sum\limits_{j\in A}\exp(\overline{V}_j(c_j))
+\end{align}
+\end{itemize}
+
+First, note that for product $h\ne j$, equation \ref{eqn:auc2.4} indicates
+\begin{align}
+ \log s_j - \log s_k &= \overline{V}_j(c_j) - \overline{V}_h(c_h)\\
+                     &= \delta_j-\delta_h - \alpha(c_j -c_h) \label{eqn:auc2.6}
+\end{align}
+
+Equation \ref{eqn:auc2.4} implies that at least one of the $V_j$s is not separately identified. Therefore, one product must be selected as the \emph{numeraire} so that all the other valuations are \emph{relative} to the normalized product.\footnote{Specifically, suppose $k$ is the \emph{numeriare} product, and that $V_k=\delta_k +\alpha p_k$. When supplied 'shares' sum to 1, the first product is by default set to be the numeraire product. This may be changed with the `normIndex' option.}  
+
+Next, substituting equation \ref{eqn:auc2.5} into equation \ref{eqn:auc2.3} yields the following closed form expression for margins:
+
+\begin{align}
+ E[m_j|V_j(c_j) > z_{k \not\in J_k}]= -\frac{1}{\alpha\sum\limits_{r\in J_k}s_r}\log\left(\frac{1}{1-\sum\limits_{r\in J_k}s_r}\right) \label{eqn:auc2.7}
+\end{align}
+
+Equations \ref{eqn:auc2.6} and \ref{eqn:auc2.7} form the basis of the calibration strategy. All the model parameters may be calibrated with just a single margin and market shares. Product prices only need to to be supplied for products whose marginal costs are assumed to change post-merger (i.e. products for which `mcDelta' is not equal to 0). 
+
+For example, suppose that the margin for product $j\in J_k$ is known. Equation \ref{eqn:auc2.7} implies that $\alpha$ may be recovered using only $j$'s margin as well as the sum of the shares for all of firm $j$'s products. This estimate of $\alpha$, in conjunction with equation \ref{eqn:auc2.7} may then be used to estimate margins for all the other products in the market. Absent post-merger cost changes, these margin estimates, along with equation \ref{eqn:auc2.6}, may then be used to estimate each products' non-offer mean valuations ($\delta$s). 
+
+When post-merger cost changes are included in the model, it becomes necessary to estimate marginal costs, \emph{but only for the products whose costs are changing due to the merger}.\footnote{This occurs because in a 2nd score auction, it is a dominant strategy to bid costs. Consequently, if product $j$'s costs do not change, then $V_j$ is the same for product $j$ both pre- and post-merger. This is in contrast to the Nash-Bertrand pricing game described in Section \ref{subsec:nblogit}, where a firm's pricing strategy for product $j$ depends on the pricing behavior of all other products, making it necessary to use pricing information to decompose $V_j$  into its price and non-price components.} This is accomplished by including price information for these products. Products whose costs are not assumed to change do not require pricing data (i.e. `prices' may be NA for products where `mcDelta' is 0). 
+
+In some instances, there may be more than one margin available. In these cases a minimum distance algorithm  is used to find the value of $\alpha$ that best satisfies all the margin equations (\ref{eqn:auc2.7}) for which there is data. 
+
+\subsection{Simulating Merger Effects}
+
+
+\subsubsection{Summarizing Results}
+The \verb@summary@ method for \verb@Auction2ndLogit@ is similar to the method described in section \ref{subsec:nbsummary}. The main difference is that by default, this method reports changes in levels rather than percentages and output in quantity shares rather than in revenue shares. These alterations were made because prices are not a pre-requisite for this model, but when prices are not supplied, only level changes are identified. Regardless, these defaults can be changed by appropriately setting the methods `revenue' and `levels' arguments.
+
+\subsubsection{Simulating Price Effects With Efficiencies}
+\verb@auction2nd.logit@'s `mcDelta' argument may be used to specify the anticipated proportional change in marginal costs that will likely occur from a merger. See \verb@auction2nd.logit@'s help page for further details.
+
+\subsubsection{Excluding Products From the Market}
+\verb@auction2nd.logit@'s `subset' argument may be used to simulate a merger's effect when a product is assumed to be eliminated from the market post-merger. See \verb@auction2nd.logit@'s help page for further details.
+
+\subsubsection{Measuring Changes In Consumer Welfare}
+The \verb@CV@ method may be used to calculate compensating variation from a merger. This method will return `NA' if pre-merger prices were not supplied for all products included in the simulation.
+
+
+\subsubsection{Calibrating Unobserved Outside Share}
+\verb@auction2nd.logit.alm@ uses the calibration strategy similar to the one discussed in section \ref{sec:logitALM} to calibrate the unobserved share of the outside good.
 
 \chapter{Other Tools}
 For some acquisitions, there may be insufficient information available
@@ -1682,7 +1978,7 @@ products.\footnote{Throughout, we abuse the notation slightly by
   treating variables like $K$ and $n_k$ as both the set of firms as well as the
   number of firms.} Let  $n=\sum\limits_{k\in K}n_k$ denote the number of products sold
 by all $K$ firms. These firms are playing an infinitely repeated
-supergame, where in each period of the game the $K$ firms play the
+super-game, where in each period of the game the $K$ firms play the
 Bertrand pricing game described in section
 \ref{sec:BertrandGame}. Mathematically, firm $k$ solves:
 
@@ -1891,8 +2187,9 @@ the behavior of existing methods may then be overridden.
 
 
 \section{The Auction Models}
-Currently, \emph{Auction2ndCap} is the only auction class available in
-\atr{}. The constructor function for this class is
+Currently, the two auction classes available in \atr{} are \emph{Auction2ndLogit} and \emph{Auction2ndCap}. \emph{Auction2ndLogit} is a child class of \emph{Logit} and therefore follows the same pattern as the Bertrand Model described above. 
+
+ In contrast, the constructor function for \emph{Auction2ndLogit} is
 \verb@auction2nd.cap@, which initializes a class instance with
 sensible default values and then does the following:
 

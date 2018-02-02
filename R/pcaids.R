@@ -14,6 +14,10 @@ setClass(
 
              nprods <- length(object@shares)
 
+             if(length(object@knownElastIndex) != 1 ){stop("'knownElastIndex' must be length 1")}
+             if(length(object@knownElast) != 1 ){stop("'knownElast' must be length 1")}
+             if(length(object@mktElast) != 1 ){stop("'mktElast' must be length 1")}
+             
              if(!(object@knownElastIndex %in% seq(1,nprods)) ){
                  stop("'knownElastIndex' value must be between 1 and the length of 'shares'")}
              if(nprods != length(object@mcDelta)){
@@ -56,8 +60,8 @@ setMethod(
      minD <- function(betas){
 
        #enforce symmetry
-       bknown = betas[idx]
-       betas  =  betas[-idx]
+       bknown = betas[1]
+       betas  =  betas[-1]
 
 
         B = diag(nprod)
@@ -70,9 +74,11 @@ setMethod(
 
 
        m1 = bknown - shareKnown * (object@knownElast + 1 - shareKnown * (object@mktElast + 1))
-       m2 = as.vector(diversion +  t(B)/diag(B)) #measure distance between observed and predicted diversion
-
-
+       
+       m2 <- diversion/t(diversion) - tcrossprod(1/diag(B), diag(B)) 
+       m2 <-  m2[upper.tri(m2)]
+       m2 <- m2[is.finite(m2) & m2 != 0]
+       
        measure=c(m1,m2)
 
        return(sum(measure^2))
@@ -93,7 +99,9 @@ setMethod(
      lower[1]=-Inf
      lower[-(1)]=0
 
-     bestBetas=optim(bStart,minD,method="L-BFGS-B",upper=upper,lower=lower)
+     bestBetas=optim(bStart,minD,method="L-BFGS-B",
+                     upper=upper,lower=lower,
+                     control=object@control.slopes)
 
 
      B = diag(nprod)
@@ -129,6 +137,8 @@ pcaids <- function(shares,knownElast,mktElast=-1,
                    subset=rep(TRUE, length(shares)),
                    priceStart=runif(length(shares)),
                    isMax=FALSE,
+                   control.slopes,
+                   control.equ,
                    labels=paste("Prod",1:length(shares),sep=""),
                    ...){
 
@@ -138,7 +148,7 @@ pcaids <- function(shares,knownElast,mktElast=-1,
 
     if(missing(diversions)){
         diversions <- tcrossprod(1/(1-shares),shares)
-        diag(diversions) <- -1.000000001 #correct potential floating point issue
+        diag(diversions) <- -1
     }
 
   ## Create PCAIDS container to store relevant data
@@ -151,6 +161,13 @@ pcaids <- function(shares,knownElast,mktElast=-1,
                   diversion=diversions,
                   priceStart=priceStart,labels=labels)
 
+    if(!missing(control.slopes)){
+      result@control.slopes <- control.slopes
+    }
+    if(!missing(control.equ)){
+      result@control.equ <- control.equ
+    }
+    
     ## Convert ownership vectors to ownership matrices
     result@ownerPre  <- ownerToMatrix(result,TRUE)
     result@ownerPost <- ownerToMatrix(result,FALSE)

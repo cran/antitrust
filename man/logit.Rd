@@ -13,12 +13,15 @@
 \usage{
 logit(prices,shares,margins,
                 ownerPre,ownerPost,
-                normIndex=ifelse(sum(shares)<1,NA,1),
+                normIndex=ifelse(isTRUE(all.equal(sum(shares), 1,
+                          check.names=FALSE)), 1 , NA ),
                 mcDelta=rep(0,length(prices)),
                 subset=rep(TRUE, length(prices)),
                 priceOutside = 0,
                 priceStart = prices,
                 isMax=FALSE,
+                control.slopes,
+                control.equ,
                 labels=paste("Prod",1:length(prices),sep=""),
                 ...
                 )
@@ -30,6 +33,8 @@ logit.alm(prices,shares,margins,
                 priceStart = prices,
                 isMax=FALSE,
                 parmsStart,
+                control.slopes,
+                control.equ,
                 labels=paste("Prod",1:length(prices),sep=""),
                 ...
                 )
@@ -45,6 +50,8 @@ logit.nests(prices,shares,margins,
                 isMax=FALSE,
                 constraint = TRUE,
                 parmsStart,
+                control.slopes,
+                control.equ,
                 labels=paste("Prod",1:length(prices),sep=""),
                 ...
                 )
@@ -59,6 +66,8 @@ logit.nests.alm(prices,shares,margins,
                 isMax=FALSE,
                 constraint = TRUE,
                 parmsStart,
+                control.slopes,
+                control.equ,
                 labels=paste("Prod",1:length(prices),sep=""),
                 ...
                 )
@@ -73,6 +82,8 @@ logit.cap(prices,shares,margins,
                 priceOutside = 0,
                 priceStart = prices,
                 isMax=FALSE,
+                control.slopes,
+                control.equ,
                 labels=paste("Prod",1:length(prices),sep=""),
                 ...
                 )
@@ -128,6 +139,8 @@ logit.cap(prices,shares,margins,
     nesting parameters. Theory requires the nesting parameters to be
     greater than the price coefficient. If missing then the random
     draws with the appropriate restrictions are employed.}
+  \item{control.slopes}{A list of  \code{\link{optim}}  control parameters passed to the calibration routine optimizer (typically the \code{calcSlopes} method).}
+    \item{control.equ}{A list of  \code{\link[BB]{BBsolve}} control parameters passed to the non-linear equation solver (typically the \code{calcPrices} method).}
   \item{labels}{A k-length vector of labels. Default is "Prod#", where
     \sQuote{#} is a number between 1 and the length of \sQuote{prices}.}
   \item{...}{Additional options to feed to the \code{\link[BB]{BBsolve}}

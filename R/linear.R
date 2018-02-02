@@ -31,14 +31,17 @@ setClass(
              if(any(object@margins<0 | object@margins>1,na.rm=TRUE)) stop("'margins' values must be between 0 and 1")
 
 
-             if(!isTRUE(all.equal(diag(diversion),rep(-1,nprods)))){ stop("'diversions' diagonal elements must all equal -1")}
+             if(!isTRUE(all.equal(diag(diversion),rep(-1,nprods), check.names=FALSE))){ stop("'diversions' diagonal elements must all equal -1")}
 
+             allhavezeros <- all(apply(diversion,1,function(x){any(x==0)}))
+             if(allhavezeros){stop("every row of 'diversions' contains zeros. Cannot calibrate demand parameters!")}
+             
              diag(diversion)=1
              if(any(diversion > 1 | diversion<0)){
                  stop("'diversions' off-diagonal elements must be between 0 and 1")}
-
-            
-             if (any(rowSums(object@diversion,na.rm=TRUE)>0,na.rm=TRUE)){ stop("'diversions' rows cannot sum to greater than 0")}
+             
+             if (!isTRUE(all.equal(rowSums(object@diversion,na.rm=TRUE),rep(0,nprods),check.names=FALSE)) && 
+                 any(rowSums(object@diversion,na.rm=TRUE)>0,na.rm=TRUE)){ stop("'diversions' rows cannot sum to greater than 0")}
 
              if(nprods != nrow(object@diversion) ||
                 nprods != ncol(object@diversion)){
@@ -125,6 +128,23 @@ setMethod(
 
        bKnown      =  -quantities[k]/(prices[k]*margins[k])
        bStart      =   bKnown*diversion[k,]/diversion[,k]
+      
+       ## change starting guess to ensure that it satisfies constraints
+       mltplyr <- 1.01 # increase starting guess by 1%
+       isneg <- as.vector(t(diversion) %*% bStart < 0)
+       
+       while(any(isneg)){
+         
+         bStart[!isneg] <- bStart[!isneg] * mltplyr
+         mltplyr <- mltplyr + .01 # decrement by 1%
+         
+         isneg <- as.vector(t(diversion) %*% bStart < 0)
+         
+         if(any(is.na(isneg))){
+           stop("'calcSlopes' cannot find initial values that satisfy symmetry constraints using supplied data. Consider setting 'symmetry' equal to FALSE."
+                )}
+       }
+       
        bStart      =  -diversion*bStart
        parmStart   =   c(diag(bStart),bStart[upper.tri(bStart,diag=FALSE)])
 
@@ -140,7 +160,8 @@ setMethod(
        
        
        
-       bestParms=constrOptim(parmStart,minD,grad=NULL,ui=ui,ci=ci)
+       bestParms=constrOptim(parmStart,minD,grad=NULL,ui=ui,ci=ci,
+                             control=object@control.slopes)
 
        slopes = diag(bestParms$par[1:nprod])
 
@@ -243,7 +264,7 @@ setMethod(
 
          minResult <- constrOptim(object@priceStart,FOC,grad=NULL,ui=slopes,ci=-intercept,...)
          
-         if(!isTRUE(all.equal(minResult$convergence,0))){
+         if(!isTRUE(all.equal(minResult$convergence,0,check.names=FALSE))){
              warning("'calcPrices' solver may not have successfully converged.'constrOptim' reports: '",minResult$message,"'")
            }
 
@@ -420,6 +441,7 @@ linear <- function(prices,quantities,margins, diversions, symmetry=TRUE,
                    mcDelta=rep(0,length(prices)),
                    subset=rep(TRUE,length(prices)),
                    priceStart=prices,
+                   control.slopes,
                    labels=paste("Prod",1:length(prices),sep=""),
                    ...
                      ){
@@ -439,6 +461,11 @@ linear <- function(prices,quantities,margins, diversions, symmetry=TRUE,
                    ownerPost=ownerPost, priceStart=priceStart,labels=labels)
 
 
+     if(!missing(control.slopes)){
+       result@control.slopes <- control.slopes
+     }
+
+     
      ## Convert ownership vectors to ownership matrices
      result@ownerPre  <- ownerToMatrix(result,TRUE)
      result@ownerPost <- ownerToMatrix(result,FALSE)

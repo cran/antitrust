@@ -5,7 +5,10 @@ setClass(
           parmsStart="numeric"
          ),
          prototype=prototype(
-         normIndex         =  1
+         normIndex         =  NA,
+         control.slopes = list( 
+           factr = 1e7 
+         )
          ),
 
          validity=function(object){
@@ -42,9 +45,9 @@ setMethod(
 
               ##identify which products have enough margin information
               ##  to impute Bertrand margins
-              isMargin    <- matrix(margins,nrow=nprods,ncol=nprods,byrow=TRUE)
-              isMargin[ownerPre==0]=0
-              isMargin    <- !is.na(rowSums(isMargin))
+              #isMargin    <- matrix(margins,nrow=nprods,ncol=nprods,byrow=TRUE)
+              #isMargin[ownerPre==0]=0
+              #isMargin    <- !is.na(rowSums(isMargin))
 
               minD <- function(theta){
 
@@ -56,19 +59,19 @@ setMethod(
                   diag(elast) <- alpha*prices - diag(elast)
 
                   revenues <- probs * prices
-                  #marginsCand <- -1 * as.vector(ginv(elast * ownerPre) %*% (revenues * diag(ownerPre))) / revenues
-                  #measure <- sum((margins - marginsCand)^2,na.rm=TRUE)
+                  marginsCand <- -1 * as.vector(ginv(elast * ownerPre) %*% (revenues * diag(ownerPre))) / revenues
+                  measure <- sum((margins - marginsCand)^2,na.rm=TRUE)
 
-                  elast      <-   elast[isMargin,isMargin]
-                  revenues   <-   revenues[isMargin]
-                  ownerPre   <-   ownerPre[isMargin,isMargin]
-                  margins    <-   margins[isMargin]
+                  #elast      <-   elast[isMargin,isMargin]
+                  #revenues   <-   revenues[isMargin]
+                  #ownerPre   <-   ownerPre[isMargin,isMargin]
+                  #margins    <-   margins[isMargin]
 
                   #marginsCand <- -1 * as.vector(ginv(elasticity * ownerPre) %*% (revenues * diag(ownerPre))) / revenues
                   #measure <- sum((margins - marginsCand)^2,na.rm=TRUE)
 
-                  measure <- revenues * diag(ownerPre) + as.vector((elast * ownerPre) %*% (margins * revenues))
-                  measure <- sum(measure^2,na.rm=TRUE)
+                  #measure <- revenues * diag(ownerPre) + as.vector((elast * ownerPre) %*% (margins * revenues))
+                  #measure <- sum(measure^2,na.rm=TRUE)
 
                   return(measure)
               }
@@ -77,9 +80,12 @@ setMethod(
               lowerB <- c(-Inf,0)
               upperB <- c(-1e-10,.99999)
 
-              minTheta <- optim(object@parmsStart,minD,method="L-BFGS-B",lower= lowerB,upper=upperB)$par
+              minTheta <- optim(object@parmsStart,minD,
+                                method="L-BFGS-B",
+                                lower= lowerB,upper=upperB,
+                                control=object@control.slopes)$par
 
-              if(isTRUE(all.equal(minTheta[[2]],0))){stop("Estimated outside share is close to 0. Use `logit' function instead")}
+              if(isTRUE(all.equal(minTheta[2],0,check.names=FALSE))){stop("ERROR: Estimated outside share is close to 0. Use `logit' function instead")}
               
               meanval <- log(shares * (1 - minTheta[2])) - log(minTheta[2]) - minTheta[1] * (prices - object@priceOutside)
 
@@ -104,16 +110,21 @@ logit.alm <- function(prices,shares,margins,
                       priceStart = prices,
                       isMax=FALSE,
                       parmsStart,
+                      control.slopes,
+                      control.equ,
                       labels=paste("Prod",1:length(prices),sep=""),
                       ...
                       ){
 
 
     if(missing(parmsStart)){
-        parmsStart <- runif(2)
-        parmsStart[1] <- -1* parmsStart[1] # price coefficient is assumed to be negative
+        parmsStart <- rep(.1,2)
+        nm <- which(!is.na(margins))[1] 
+        parmsStart[1] <- -1/(margins[nm]*prices[nm]*(1-shares[nm])) #ballpark alpha for starting values
     }
 
+   
+  
     ## Create Logit  container to store relevant data
     result <- new("LogitALM",prices=prices, shares=shares,
                   margins=margins,
@@ -127,6 +138,13 @@ logit.alm <- function(prices,shares,margins,
                   parmsStart=parmsStart,
                   labels=labels)
 
+    if(!missing(control.slopes)){
+      result@control.slopes <- control.slopes
+    }
+    if(!missing(control.equ)){
+      result@control.equ <- control.equ
+    }
+    
     ## Convert ownership vectors to ownership matrices
     result@ownerPre  <- ownerToMatrix(result,TRUE)
     result@ownerPost <- ownerToMatrix(result,FALSE)

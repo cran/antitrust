@@ -19,19 +19,20 @@ setClass(
          ),
          validity=function(object){
 
+             if(is.list(object@labels)){ nprods <- length(object@labels[[1]])}
+             else{nprods <- length(object@labels)}
 
-             nprods <- length(object@labels)
 
-
-
-             if(nprods != length(object@shares) ||
-                nprods != length(object@subset)){
+             if(!is.list(object@labels) &&
+                (nprods != length(object@shares) ||
+                nprods != length(object@subset))){
                  stop("'labels', 'shares', and 'subset' must all have the same length")}
 
              if(any(object@shares < 0 | object@shares > 1,na.rm=TRUE)){
                  stop("'shares' values must be between 0 and 1")}
 
-             if(sum(object@shares) > 1){
+             if(!(sum(object@shares,na.rm=TRUE) < 1 ||
+                  isTRUE(all.equal(sum(object@shares),1,check.names=FALSE)))){
                  stop("The sum of 'shares' values must be less than or equal to 1")}
 
 
@@ -41,10 +42,7 @@ setClass(
 
              if(any(object@mcDelta>0,na.rm=TRUE)){
                  warning("positive values of 'mcDelta' imply an INCREASE in marginal costs")}
-             if(any(abs(object@mcDelta)>1,na.rm=TRUE)){
-                 warning("Values of 'mcDelta' greater than 1 in absolute value imply a marginal cost change greater than 100%")}
-
-
+             
              return(TRUE)
 
          }
@@ -172,7 +170,7 @@ setGeneric (name= "summary")
 setMethod(
  f= "hhi",
  signature= "Bertrand",
- definition=function(object,preMerger=TRUE,revenue=FALSE){
+ definition=function(object,preMerger=TRUE,revenue=FALSE, insideonly=TRUE){
 
      if(preMerger){owner <- object@ownerPre}
      else{owner <- object@ownerPost}
@@ -183,7 +181,12 @@ setMethod(
      weights <- crossprod(control,owner)
      weights <- t(t(weights)/diag(weights)) # divide each element by its corresponding diagonal
 
-     shares <- calcShares(object,preMerger,revenue) *100
+     shares <- calcShares(object,preMerger,revenue)
+     
+     if(insideonly) shares <- shares/sum(shares, na.rm=TRUE) # hhi is typically defined over inside goods
+     
+     shares <- shares *100 
+     
      shares[is.na(shares)] <- 0
 
      result <- as.vector(shares %*% weights %*% shares)
@@ -262,7 +265,7 @@ setMethod(
 
 
 
-## compute margins
+## compute producer surplus
 setMethod(
   f= "calcProducerSurplus",
   signature= "Bertrand",
@@ -480,7 +483,7 @@ setMethod(
 
     thisPlot=thisPlot + geom_hline(aes_string(yintercept = "mc",group="Cost",color="Cost"),data=equilibria[,c("mc","Cost","prod")],show_guide=TRUE)
 
-    #if(!isTRUE(all.equal(mcPre,mcPost))){
+    #if(!isTRUE(all.equal(mcPre,mcPost,check.names=FALSE))){
     #  thisPlot=thisPlot + geom_hline(aes(yintercept = mc), color="orange",data=data.frame(mc=mcPost[mcPost!=mcPre],prod=labels[mcPost!=mcPre]),show_guide=TRUE)
 
     #}
@@ -496,18 +499,19 @@ setMethod(
 setMethod(
  f= "summary",
  signature= "Bertrand",
- definition=function(object,revenue=TRUE,shares=TRUE,parameters=FALSE,digits=2,...){
+ definition=function(object,revenue=TRUE,shares=TRUE,levels=FALSE,parameters=FALSE,digits=2,...){
 
      curWidth <-  getOption("width")
 
 
      pricePre   <-  object@pricePre
      pricePost  <-  object@pricePost
-     priceDelta <- (pricePost/pricePre - 1) * 100
+     priceDelta <- calcPriceDelta(object,levels=levels)
+     if(!levels) priceDelta <- priceDelta *100
 
      if(!shares && hasMethod("calcQuantities",class(object))){
-         outPre  <-  calcQuantities(object,TRUE)
-         outPost <-  calcQuantities(object,FALSE)
+         outPre  <-  calcQuantities(object,preMerger=TRUE)
+         outPost <-  calcQuantities(object,preMerger=FALSE)
 
          if(revenue){
              outPre <- pricePre*outPre
@@ -520,15 +524,16 @@ setMethod(
      else{
          if(!shares){warning("'shares' equals FALSE but 'calcQuantities' not defined. Reporting shares instead of quantities")}
 
-         outPre  <-  calcShares(object,TRUE,revenue) * 100
-         outPost <-  calcShares(object,FALSE,revenue) * 100
+         outPre  <-  calcShares(object,preMerger=TRUE,revenue=revenue) * 100
+         outPost <-  calcShares(object,preMerger=FALSE,revenue=revenue) * 100
 
          sumlabels=paste("shares",c("Pre","Post"),sep="")
      }
 
      mcDelta <- object@mcDelta * 100
 
-     outDelta <- (outPost/outPre - 1) * 100
+     if(levels){outDelta <- outPost - outPre}
+     else{outDelta <- (outPost/outPre - 1) * 100}
 
 
      isParty <- as.numeric(rowSums( abs(object@ownerPost - object@ownerPre))>0)
@@ -553,15 +558,21 @@ setMethod(
      print(round(results,digits),digits=digits)
      options("width"=curWidth) #restore to current width
 
-     cat("\n\tNotes: '*' indicates merging parties' products. Deltas are percent changes.\n")
+     cat("\n\tNotes: '*' indicates merging parties' products.\n ")
+     if(levels){cat("\tDeltas are level changes.\n")}
+     else{cat("\tDeltas are percent changes.\n")}
      if(revenue){cat("\tOutput is based on revenues.\n")}
      else{cat("\tOutput is based on units sold.\n")}
 
      results <- cbind(isParty, results)
 
      cat("\n\nShare-Weighted Price Change:",round(sum(sharesPost*priceDelta,na.rm=TRUE),digits),sep="\t")
+     ##Only compute cmcr if cmcr method doesn't yield an error
+     thisCMCR <- tryCatch(cmcr(object),error=function(e) FALSE)
+     if(!is.logical(thisCMCR)){
      cat("\nShare-Weighted CMCR:",round(sum(cmcr(object)*sharesPost[isParty=="*"],na.rm=TRUE)/sum(sharesPost[isParty=="*"],na.rm=TRUE),digits),sep="\t")
-
+     } 
+     
      ##Only compute upp if prices are supplied
      thisUPP <- tryCatch(upp(object),error=function(e) FALSE)
      if(!is.logical(thisUPP)){

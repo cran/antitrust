@@ -1,5 +1,6 @@
 setClassUnion("matrixOrVector", c("matrix", "numeric","character","factor"))
-setClassUnion("matrixOrList", c("matrix", "list"))
+setClassUnion("matrixOrList", c("numeric","matrix", "list"))
+setClassUnion("characterOrList", c("character", "list"))
 
 setClass(
 
@@ -11,25 +12,41 @@ setClass(
          pricePost    = "numeric",
          mcPre        = "numeric",
          mcPost       = "numeric",
-         labels       = "character"
+         labels       = "characterOrList",
+         cls        = "character",
+         control.slopes = "list",
+         control.equ = "list"
          ),
          prototype(
          pricePre  = numeric(),
          pricePost = numeric(),
          mcPre     = numeric(),
-         mcPost    = numeric()
+         mcPost    = numeric(),
+         cls  =    character(),
+         ##copied from 'optim' definition:
+         control.slopes = list( 
+                               reltol = sqrt(.Machine$double.eps) 
+                               ),
+         ## copied from 'BBsolve' definition:
+         ## changed 'maxit' to 2000 from 1500
+         ## changed tol to sqrt(.Machine$double.eps) < 1e-07 (default)
+         control.equ = list(maxit = 2000, M = c(50, 10), 
+                            tol = sqrt(.Machine$double.eps), trace = FALSE, 
+                            triter = 10, 
+                            noimp = 100, NM = c(TRUE, FALSE))
          ),
          validity=function(object){
 
 
 
-             nprods <- length(object@labels)
+           if(is.list(object@labels)){ nprods <- length(object@labels[[1]])}
+           else{nprods <- length(object@labels)}
 
 
              if(is.matrix(object@ownerPre)){
 
                  if(nprods != ncol(object@ownerPre)){
-                     stop("The number of rows and columns in 'ownerPre' must equal the length of 'labels'")}
+                     stop("The number of rows and columns in 'ownerPre' must equal the number of products")}
                  if(nrow(object@ownerPre) != ncol(object@ownerPre)){
                      stop("'ownerPre' must be a square matrix ")}
 
@@ -43,7 +60,7 @@ setClass(
              else if (nprods != length(object@ownerPre)) stop("'ownerPre' and 'labels' must be vectors of the same length")
              if(is.matrix(object@ownerPost)){
                  if(nprods != ncol(object@ownerPost)){
-                     stop("The number of rows and columns in 'ownerPost' must equal the length of 'labels'")}
+                     stop("The number of rows and columns in 'ownerPost' must equal the number of products")}
                  if(nrow(object@ownerPost) != ncol(object@ownerPost)){
                      stop("'ownerPost' must be a square matrix")}
                  if(
@@ -55,6 +72,7 @@ setClass(
 
              else if (nprods != length(object@ownerPost)) stop("'ownerPost' and 'labels' must be vectors of the same length")
 
+             if(identical(object@ownerPre,object@ownerPost)) warning("'ownerPost' and 'ownerPre' are the same")
               return(TRUE)
          }
 
@@ -95,7 +113,7 @@ setMethod(
  signature= "Antitrust",
  definition=function(object){
 
-    print(calcPriceDelta(object)*100)
+    print(calcPriceDelta(object))
 
 }
           )
@@ -106,12 +124,13 @@ setMethod(
 setMethod(
           f= "calcPriceDelta",
           signature= "Antitrust",
-          definition=function(object){
+          definition=function(object,levels=FALSE){
 
               pricePre  <- object@pricePre
               pricePost <- object@pricePost
 
-              priceDelta <- pricePost/pricePre - 1
+              if(levels){priceDelta <- pricePost - pricePre}
+              else{priceDelta <- pricePost/pricePre - 1}
               #names(priceDelta) <- object@labels
 
               return(priceDelta)

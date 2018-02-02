@@ -14,8 +14,11 @@ aids(shares,margins,prices,diversions,
                  ownerPre,ownerPost,
                  mcDelta=rep(0, length(shares)),
                  subset=rep(TRUE, length(shares)),
+                 parmStart= rep(NA_real_,2),
                  priceStart=runif(length(shares)),
                  isMax=FALSE,
+                 control.slopes,
+                 control.equ,
                  labels=paste("Prod",1:length(shares),sep=""),
                  ...)
 
@@ -27,6 +30,8 @@ pcaids(shares,knownElast,mktElast=-1,
               subset=rep(TRUE, length(shares)),
               priceStart=runif(length(shares)),
               isMax=FALSE,
+              control.slopes,
+              control.equ,
               labels=paste("Prod",1:length(shares),sep=""),
               ...)
 
@@ -39,6 +44,8 @@ pcaids.nests(shares,margins,knownElast,mktElast=-1,
               priceStart=runif(length(shares)),
               isMax=FALSE,
               nestsParmStart,
+              control.slopes,
+              control.equ,
               labels=paste("Prod",1:length(shares),sep=""),
               ...)
 
@@ -79,6 +86,8 @@ pcaids.nests(shares,margins,knownElast,mktElast=-1,
   the product indexed by that element should be included in the
   post-merger simulation and FALSE if it should be excluded.Default is a
   length k vector of TRUE.}
+  \item{parmStart}{\code{aids} only. A vector of length 2 who elements equal to an
+  initial guess for "known" element of the diagonal of the demand matrix and the market elasticity.}
   \item{priceStart}{A vector of length k who elements equal to an
   initial guess of the proportional change in price caused by the
   merger. The default is to draw k random elements from a [0,1] uniform
@@ -88,6 +97,8 @@ pcaids.nests(shares,margins,knownElast,mktElast=-1,
 \item{nestsParmStart}{A vector of starting values used to solve for
   price coefficient and nest parameters. If missing then the random
   draws with the appropriate restrictions are employed.}
+    \item{control.slopes}{A list of  \code{\link{optim}}  control parameters passed to the calibration routine optimizer (typically the \code{calcSlopes} method).}
+    \item{control.equ}{A list of  \code{\link[BB]{BBsolve}} control parameters passed to the non-linear equation solver (typically the \code{calcPrices} method).}
   \item{labels}{A k-length vector of labels.}
   \item{...}{Additional options to feed to the \code{\link[BB]{BBsolve}}
   optimizer used to solve for equilibrium prices.}

@@ -1,6 +1,6 @@
 setClass(
-         Class   = "LogitALM",
-         contains="Logit",
+         Class   = "CESALM",
+         contains="CES",
          representation=representation(
           parmsStart="numeric"
          ),
@@ -22,8 +22,7 @@ setClass(
              if(object@shareInside != 1){
                stop(" sum of 'shares' must equal 1")
              }
-             
-             
+
               if(length(object@parmsStart)!=2){
                  stop("'parmsStart' must a vector of length 2")
                  }
@@ -32,7 +31,7 @@ setClass(
 
 setMethod(
           f= "calcSlopes",
-          signature= "LogitALM",
+          signature= "CESALM",
           definition=function(object){
 
               ## Uncover Demand Coefficents
@@ -41,9 +40,7 @@ setMethod(
               shares       <-  object@shares
               margins      <-  object@margins
               prices       <-  object@prices
-              mktElast     <-  object@mktElast 
-              
-              avgPrice <- sum(shares*prices)
+              mktElast    <-   object@mktElast
 
               nprods <- length(object@shares)
 
@@ -55,57 +52,50 @@ setMethod(
 
               minD <- function(theta){
 
-                  alpha <- theta[1]
+                  gamma <- theta[1]
                   sOut  <- theta[2]
+                  
+                  alpha <- 1/( 1  - sOut)
 
                   probs <- shares * (1 - sOut)
-                  elast <- -alpha *  matrix(prices * probs,ncol=nprods,nrow=nprods)
-                  diag(elast) <- alpha*prices - diag(elast)
-
+                  elasticity <- (gamma - 1 ) * matrix(probs,ncol=nprods,nrow=nprods)
+                  diag(elasticity) <- -gamma + diag(elasticity)
+                  
                   revenues <- probs * prices
-                  marginsCand <- -1 * as.vector(ginv(elast * ownerPre) %*% (revenues * diag(ownerPre))) / revenues
+                  marginsCand <- -1 * as.vector(MASS::ginv(elasticity * ownerPre) %*% (revenues * diag(ownerPre))) / revenues
                   
                   m1 <- margins - marginsCand
-                  m2 <- mktElast/(avgPrice * alpha) - sOut  
-                  measure <- sum(c(m1,m2)^2,na.rm=TRUE)
+                  m2 <- mktElast/ ((1 + alpha) * sum(probs)) - (1 - gamma)
+                  measure <- sum(c(m1 , m2)^2,na.rm=TRUE)
 
-                  #elast      <-   elast[isMargin,isMargin]
-                  #revenues   <-   revenues[isMargin]
-                  #ownerPre   <-   ownerPre[isMargin,isMargin]
-                  #margins    <-   margins[isMargin]
-
-                  #marginsCand <- -1 * as.vector(ginv(elasticity * ownerPre) %*% (revenues * diag(ownerPre))) / revenues
-                  #measure <- sum((margins - marginsCand)^2,na.rm=TRUE)
-
-                  #measure <- revenues * diag(ownerPre) + as.vector((elast * ownerPre) %*% (margins * revenues))
-                  #measure <- sum(measure^2,na.rm=TRUE)
-
+                  
                   return(measure)
               }
 
-               ## Constrain optimizer to look  alpha <0,  0 < sOut < 1
-              lowerB <- c(-Inf,0)
-              upperB <- c(-1e-10,.99999)
+               ## Constrain optimizer to look  alpha > 1,  0 < sOut < 1
+              lowerB <- c(1,0)
+              upperB <- c(Inf,.99999)
 
               
-              if(!is.na(mktElast)){
-                upperB[1] <- mktElast/avgPrice
-              }
               
-              minTheta <- optim(object@parmsStart,minD,
+              minGamma <- optim(object@parmsStart,minD,
                                 method="L-BFGS-B",
                                 lower= lowerB,upper=upperB,
                                 control=object@control.slopes)$par
 
-              if(isTRUE(all.equal(minTheta[2],0,check.names=FALSE))){warning("Estimated outside share is close to 0. Use `logit' function instead")}
+              if(isTRUE(all.equal(minGamma[2],0,check.names=FALSE))){warning("Estimated outside share is close to 0. Use `ces' function instead")}
               
-              meanval <- log(shares * (1 - minTheta[2])) - log(minTheta[2]) - minTheta[1] * (prices - object@priceOutside)
-
+              
+              meanval <- log(shares * (1 - minGamma[2])) - log(minGamma[2]) + (minGamma[1] - 1) * (log(prices) - log(object@priceOutside))
+              meanval <- exp(meanval)
+              
+              
+              
               names(meanval)   <- object@labels
 
 
-              object@slopes      <- list(alpha=minTheta[1],meanval=meanval)
-              object@shareInside <- 1-minTheta[2]
+              object@slopes      <- list(alpha=1/(1 - minGamma[2]) - 1,gamma=minGamma[1],meanval=meanval)
+              object@shareInside <- 1-minGamma[2]
 
               return(object)
 
@@ -114,12 +104,12 @@ setMethod(
           )
 
 
-logit.alm <- function(prices,shares,margins,
+ces.alm <- function(prices,shares,margins,
                       ownerPre,ownerPost,
                       mktElast = NA_real_,
                       mcDelta=rep(0,length(prices)),
                       subset=rep(TRUE,length(prices)),
-                      priceOutside=0,
+                      priceOutside=1,
                       priceStart = prices,
                       isMax=FALSE,
                       parmsStart,
@@ -133,13 +123,13 @@ logit.alm <- function(prices,shares,margins,
     if(missing(parmsStart)){
         parmsStart <- rep(.1,2)
         nm <- which(!is.na(margins))[1] 
-        parmsStart[1] <- -1/(margins[nm]*prices[nm]*(1-shares[nm])) #ballpark alpha for starting values
+        parmsStart[1] <- 1/(margins[nm]*(1-shares[nm])) - shares[nm]/(1-shares[nm]) #ballpark alpha for starting values
     }
 
    
   
-    ## Create Logit  container to store relevant data
-    result <- new("LogitALM",prices=prices, shares=shares,
+    ## Create CES  container to store relevant data
+    result <- new("CESALM",prices=prices, shares=shares,
                   margins=margins,
                   ownerPre=ownerPre,
                   ownerPost=ownerPost,
@@ -151,6 +141,8 @@ logit.alm <- function(prices,shares,margins,
                   shareInside=ifelse(isTRUE(all.equal(sum(shares),1,check.names=FALSE,tolerance=1e-3)),1,sum(shares)),
                   parmsStart=parmsStart,
                   labels=labels)
+    
+    
 
     if(!missing(control.slopes)){
       result@control.slopes <- control.slopes

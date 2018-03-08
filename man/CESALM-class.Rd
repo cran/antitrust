@@ -1,24 +1,24 @@
-\name{LogitALM-class}
-\Rdversion{1.1}
+\name{CESALM-class}
+\Rdversion{1.0}
 \docType{class}
-\alias{LogitALM-class}
-%\alias{calcShares,LogitALM-method}
-%\alias{calcSlopes,LogitALM-method}
-%\alias{getNestsParms,LogitALM-method}
-%%\alias{CV,LogitALM-method}
-%%\alias{elast,LogitALM-method}
+\alias{CESALM-class}
+%\alias{calcShares,CESALM-method}
+%\alias{calcSlopes,CESALM-method}
+%\alias{getNestsParms,CESALM-method}
+%%\alias{CV,CESALM-method}
+%%\alias{elast,CESALM-method}
 
-\title{Class \dQuote{LogitALM}}
+\title{Class \dQuote{CESALM}}
 \description{
-  The \dQuote{LogitALM} class contains all the information needed to
-  calibrate a Logit
+  The \dQuote{CESALM} class contains all the information needed to
+  calibrate a CES
   demand system and perform a merger simulation analysis under the assumption that
   firms are playing a differentiated products Bertrand pricing game with
   unknown market elasticity.
 %%  ~~ A concise (1-5 lines) description of what the class is. ~~
 }
 \section{Objects from the Class}{
-Objects can be created by using the constructor function \code{\link{logit.alm}}.
+Objects can be created by using the constructor function \code{\link{ces.alm}}.
 %%  ~~ describe objects here ~~
 }
 \section{Slots}{
@@ -41,7 +41,7 @@ Class \code{\linkS4class{Antitrust}}, by class \code{\linkS4class{Bertrand}}, di
   pre-merger ownership structure, while FALSE invokes the method using
   the post-merger ownership structure.
   \describe{
-    \item{\code{calcSlopes}}{\code{signature(object)}}{ Uncover Logit
+    \item{\code{calcSlopes}}{\code{signature(object)}}{ Uncover CES
       ALM demand parameters. Assumes that firms are currently at
       equilibrium  in a differentiated product Bertrand Nash pricing game with capacity constraints.}
   }
@@ -51,7 +51,7 @@ Class \code{\linkS4class{Antitrust}}, by class \code{\linkS4class{Bertrand}}, di
 \author{Charles Taragin \email{charles.taragin@usdoj.gov}}
 
 \examples{
-showClass("LogitALM")           # get a detailed description of the class
-showMethods(classes="LogitALM") # show all methods defined for the class
+showClass("CESALM")           # get a detailed description of the class
+showMethods(classes="CESALM") # show all methods defined for the class
 }
 \keyword{classes}

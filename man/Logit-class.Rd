@@ -11,7 +11,7 @@
 \title{Class \dQuote{Logit}}
 \description{
    The \dQuote{Logit} class contains all the information needed to calibrate a Logit
-  demand system and perform a merger analysis under the assumption that
+  demand system and perform a merger simulation analysis under the assumption that
   firms are playing a differentiated products Bertrand pricing game.
 %%  ~~ A concise (1-5 lines) description of what the class is. ~~
 }
@@ -37,6 +37,7 @@ Objects can be created by using the constructor function \code{\link{logit}}.
       is 0.}
      \item{\code{slopes}:}{A list containing the coefficient on price (\sQuote{alpha}) and the vector of mean
       valuations (\sQuote{meanval})}
+       \item{\code{mktElast}:}{A length 1 vector of market elasticities. }
 
   }
 }

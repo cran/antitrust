@@ -64,7 +64,7 @@ setMethod(
                   ownerPre   <- ownerPre[isMargin,isMargin]
                   margins    <- margins[isMargin]
 
-                  #marginsCand <- -1 * as.vector(ginv(elasticity * ownerPre) %*% (shares * diag(ownerPre))) / shares
+                  #marginsCand <- -1 * as.vector(MASS::ginv(elasticity * ownerPre) %*% (shares * diag(ownerPre))) / shares
                   #measure <- sum((margins - marginsCand)^2,na.rm=TRUE)
                    FOC <- (shares * diag(ownerPre)) + (elasticity * ownerPre) %*% (shares * margins)
                    measure<-sum(FOC^2,na.rm=TRUE)
@@ -82,6 +82,7 @@ setMethod(
               names(meanval)   <- object@labels
 
               object@slopes    <- list(alpha=alpha,gamma=minGamma,meanval=meanval)
+              object@priceOutside <- idxPrice
 
 
               return(object)
@@ -104,7 +105,9 @@ setMethod(
      gamma    <- object@slopes$gamma
      meanval  <- object@slopes$meanval
 
-     outVal <- ifelse(object@shareInside<1, object@priceOutside^(1-gamma), 0)
+     #outVal <- ifelse(object@shareInside<1, object@priceOutside^(1-gamma), 0)
+     outVal <- ifelse(is.na(object@normIndex), object@priceOutside^(1-gamma), 0)
+     
      shares <- meanval*prices^(1-gamma)
      shares <- shares/(sum(shares,na.rm=TRUE) + outVal)
 
@@ -127,6 +130,7 @@ setMethod(
  signature= "CES",
  definition=function(object,preMerger=TRUE,market=FALSE){
 
+   
      gamma    <- object@slopes$gamma
 
      shares <-  calcShares(object,preMerger,revenue=TRUE)
@@ -134,11 +138,13 @@ setMethod(
 
       if(market){
 
-          alpha       <- object@slopes$alpha
-          if(is.null(alpha)){
-              stop("'shareInside' must be between 0 and 1 to  calculate Market Elasticity")}
-          elast <- (1+alpha) * (1-gamma) * sum(shares) * (1 - sum(shares))
-
+        if(preMerger){ prices <- object@pricePre}
+        else{          prices <- object@pricePost}
+        
+          avgPrice <- sum(prices*shares)/sum(shares)
+          
+          elast <- ( 1 - gamma  )  * (1 - sum(shares)) * avgPrice 
+          
          }
 
      else{

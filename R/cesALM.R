@@ -41,6 +41,9 @@ setMethod(
               margins      <-  object@margins
               prices       <-  object@prices
               mktElast    <-   object@mktElast
+              priceOutside <- object@priceOutside
+              
+              avgPrice <- sum(prices*shares)/sum(shares)
 
               nprods <- length(object@shares)
 
@@ -54,25 +57,25 @@ setMethod(
 
                   gamma <- theta[1]
                   sOut  <- theta[2]
-                  
-                  alpha <- 1/( 1  - sOut)
+                
 
                   probs <- shares * (1 - sOut)
+                  
                   elasticity <- (gamma - 1 ) * matrix(probs,ncol=nprods,nrow=nprods)
                   diag(elasticity) <- -gamma + diag(elasticity)
                   
-                  revenues <- probs * prices
-                  marginsCand <- -1 * as.vector(MASS::ginv(elasticity * ownerPre) %*% (revenues * diag(ownerPre))) / revenues
+                  
+                  marginsCand <- -1 * as.vector(MASS::ginv(elasticity * ownerPre) %*% (probs * diag(ownerPre))) / probs
                   
                   m1 <- margins - marginsCand
-                  m2 <- mktElast/ ((1 + alpha) * sum(probs)) - (1 - gamma)
+                  m2 <- mktElast/(( 1 - gamma ) * avgPrice )  -   sOut   
                   measure <- sum(c(m1 , m2)^2,na.rm=TRUE)
 
                   
                   return(measure)
               }
 
-               ## Constrain optimizer to look  alpha > 1,  0 < sOut < 1
+               ## Constrain optimizer to look  gamma > 1,  0 < sOut < 1
               lowerB <- c(1,0)
               upperB <- c(Inf,.99999)
 
@@ -83,10 +86,19 @@ setMethod(
                                 lower= lowerB,upper=upperB,
                                 control=object@control.slopes)$par
 
-              if(isTRUE(all.equal(minGamma[2],0,check.names=FALSE))){warning("Estimated outside share is close to 0. Use `ces' function instead")}
+              if(isTRUE(all.equal(minGamma[2],0,check.names=FALSE))){warning("Estimated outside share is close to 0. Normalizing relative to largest good.")
               
+                idx <- which.max(shares)
+                object@normIndex <- idx
+                priceOutside <- priceOutside[idx]
+                minGamma[2] <- 0
+                
+                meanval <- log(shares) - log(shares[idx]) + (minGamma[1] - 1) * (log(prices) - log(priceOutside))
+              }
+              else{ meanval <- log(shares * (1 - minGamma[2])) - log(minGamma[2]) + (minGamma[1] - 1) * (log(prices) - log(object@priceOutside))}
+              if(isTRUE(all.equal(minGamma[2],1,check.names=FALSE))){stop("Estimated outside share is close to 1.")}
               
-              meanval <- log(shares * (1 - minGamma[2])) - log(minGamma[2]) + (minGamma[1] - 1) * (log(prices) - log(object@priceOutside))
+             
               meanval <- exp(meanval)
               
               
@@ -94,8 +106,9 @@ setMethod(
               names(meanval)   <- object@labels
 
 
-              object@slopes      <- list(alpha=1/(1 - minGamma[2]) - 1,gamma=minGamma[1],meanval=meanval)
+              object@slopes      <- list(alpha=1/minGamma[2] - 1  ,gamma=minGamma[1],meanval=meanval)
               object@shareInside <- 1-minGamma[2]
+              object@priceOutside <- priceOutside
 
               return(object)
 

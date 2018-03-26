@@ -121,7 +121,7 @@ setMethod(
 
               nprods <- length(shares)
               
-              avgPrice <- sum(shares * prices, na.rm=TRUE)
+              avgPrice <- sum(shares * prices, na.rm=TRUE) / sum(shares)
 
               ## identify which products have enough margin information
               ##  to impute Bertrand margins
@@ -154,7 +154,7 @@ setMethod(
                   #margins    <- margins[isMargin]
 
                   
-                  marginsCand <- -1 * as.vector(ginv(elast * ownerPre) %*% (revenues * diag(ownerPre))) / revenues
+                  marginsCand <- -1 * as.vector(MASS::ginv(elast * ownerPre) %*% (revenues * diag(ownerPre))) / revenues
                   m1 <- margins - marginsCand
                   #m2 <- mktElast - alpha*avgPrice*( 1- shareInside)
                   measure <- sum(c(m1*100 )^2,na.rm=TRUE)
@@ -184,7 +184,7 @@ setMethod(
               names(meanval)   <- object@labels
 
               object@slopes    <- list(alpha=minAlpha,meanval=meanval)
-
+              object@priceOutside <- idxPrice
 
               return(object)
           }
@@ -282,8 +282,9 @@ setMethod(
      alpha    <- object@slopes$alpha
      meanval  <- object@slopes$meanval
 
-     outVal <- ifelse(object@shareInside<1, 1, 0)
-
+     #outVal <- ifelse(object@shareInside<1, 1, 0)
+     outVal <- ifelse(is.na(object@normIndex), 1, 0)
+     
      shares <- exp(meanval + alpha*(prices - object@priceOutside))
      shares <- shares/(outVal + sum(shares,na.rm=TRUE))
 
@@ -311,7 +312,7 @@ setMethod(
 
      alpha    <- object@slopes$alpha
 
-     shares <-  calcShares(object,preMerger)
+     shares <-  calcShares(object,preMerger = preMerger)
 
      if(market){
 
@@ -347,7 +348,8 @@ setMethod(
               meanval     <- object@slopes$meanval
               subset <- object@subset
       
-              outVal <- ifelse(object@shareInside<1, 1, 0)
+              # outVal <- ifelse(object@shareInside<1, 1, 0)
+              outVal <- ifelse(is.na(object@normIndex), 1, 0)
               
               VPre  <- sum(exp(meanval + (object@pricePre - object@priceOutside)*alpha))  + outVal
               VPost <- sum(exp(meanval + (object@pricePost - object@priceOutside)*alpha)[subset] ) + outVal

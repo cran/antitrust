@@ -55,6 +55,9 @@
 \alias{calcdMC}
 \alias{calcdMC,ANY-method}
 \alias{calcdMC,Stackelberg-method}
+\alias{calcDiagnostics}
+\alias{calcDiagnostics,ANY-method}
+\alias{calcDiagnostics,Bertrand-method}
 \alias{calcSlopes}
 \alias{calcSlopes,ANY-method}
 \alias{calcSlopes,AIDS-method}
@@ -74,6 +77,9 @@
 \alias{calcSlopes,Auction2ndLogitALM-method}
 \alias{calcSlopes,Cournot-method}
 \alias{calcSlopes,Stackelberg-method}
+\alias{getParms}
+\alias{getParms,ANY-method}
+\alias{getParms,Bertrand-method}
 \alias{hhi}
 \alias{hhi,ANY-method}
 \alias{hhi,Bertrand-method}
@@ -106,11 +112,14 @@
 \S4method{calcMargins}{ANY}(object,preMerger=TRUE)
 \S4method{calcMC}{Bertrand}(object,preMerger=TRUE)
 \S4method{calcSlopes}{ANY}(object,preMerger=TRUE)
+\S4method{calcDiagnostics}{Bertrand}(object,labels=object@labels)
+\S4method{getParms}{Bertrand}(object,digits=10)
 \S4method{hhi}{Bertrand}(object,preMerger=TRUE,revenue=FALSE,insideonly=TRUE)
 \S4method{ownerToMatrix}{Antitrust}(object,preMerger=TRUE)
 \S4method{ownerToVec}{Antitrust}(object,preMerger=TRUE)
 \S4method{plot}{Bertrand}(x,scale=.1)
-\S4method{summary}{Bertrand}(object,revenue=TRUE,shares=TRUE,levels=FALSE,parameters=FALSE,digits=2,...)
+\S4method{summary}{Bertrand}(object,revenue=TRUE,shares=TRUE,levels=FALSE,
+parameters=FALSE,market=FALSE,digits=2,...)
 
 
 }
@@ -135,9 +144,12 @@
     is FALSE}
      \item{levels}{If TRUE, report results in levels. If FALSE, report results in percents. Default is FALSE}
     \item{digits}{The number of significant digits to round
-  printed results. Default is 2}
+  printed results.}
   \item{scale}{The proportion below marginal cost and above equilbrium price that should be plotted. Default is .1 }
   \item{insideonly}{If TRUE, excludes the share of the outside good from the calculation. Default is TRUE.}
+  \item{market}{If TRUE, reports market-level summary. Otherwise reports product/plant level summary. Default
+    is FALSE}
+  \item{labels}{A length-k vector product labels. Defauult is object@labels}
   \item{...}{Arguments to be passed to non-linear solver, OR for
     \code{summary} to \code{CV}.}
 }
@@ -184,6 +196,9 @@
     Nash-Bertrand or Cournot game. For "LogitCap", assumes firms are
     playing a Nash-Bertrand or Cournot game with capacity constraints.
   }
+  \item{calcDiagnostics}{\code{signature(object=Bertrand,labels=object@labels)}}{
+    Computes he perentage difference between predicted and observed pre-merger prices, shares, margins and market elasticities (if supplied) . \sQuote{labels} is used to specify row labels.
+  }
    \item{calcVC}{\code{signature(object=Cournot,preMerger=TRUE)}}{
     Computes either pre- or post-merger variable costs. Variable costs
     are assumed to be quadratic by default. Post-merger variable costs are equal to
@@ -210,10 +225,13 @@
     Computes demand parameters assuming that firms are playing a
     Nash-Bertrand or Cournot game.
   }
+  \item{getParms}{\code{signature(object=Bertrand,digits=10)}}{
+  Returns a list of model-specific demand parameters. \sQuote{digits} specifies the number of significant digit to return (default 10).
+  }
    \item{hhi}{\code{signature(object=Bertrand,preMerger=TRUE,revenue=FALSE, insideonly=TRUE)}}{
 
     Computes the  Herfindahl-Hirschman Index (HHI) using simulated market
-    shares and either pre- or post-merger ownership information.
+    shares and either pre- or post-merger ownership information.Outside shares are excluded from the calculation.
   }
   \item{ownerToMatrix}{\code{signature(object=Antitrust,preMerger=TRUE)}}{
 
@@ -227,7 +245,7 @@
 
   }
    \item{plot}{\code{signature(x,scale=.1)}}{
-Use \code{\link{ggplot}} to plot pre- and post-merger demand, marginal cost and equilibria. \sQuote{scale} controls the amount above marginal cost and below equilbrium price that is plotted.
+Use \code{\link[ggplot2]{ggplot}} to plot pre- and post-merger demand, marginal cost and equilibria. \sQuote{scale} controls the amount above marginal cost and below equilbrium price that is plotted.
   }
   \item{show}{\code{signature(object=Antitrust)}}{
     Displays the percentage change in prices due to the merger.

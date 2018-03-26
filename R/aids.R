@@ -12,7 +12,6 @@ setClass(
         mktElast         =  numeric(),
         parmStart        =  numeric(),
         control.slopes = list( 
-          factr = 1e7 
         )
        ),
        
@@ -29,11 +28,16 @@ setClass(
              if(!isTRUE(all.equal(sum(object@shares),1,check.names=FALSE,tolerance=1e-3))){
                  stop("The sum of 'shares' values must equal 1")}
 
-             if(length(object@margins[!is.na(object@margins)])<2){
-                 stop("'margins' must contain at least two non-missing margins in order to calibrate demand parameters")
-             }
+             nMargins <- length(object@margins[!is.na(object@margins)])
+             
+             
+             
+             if(nMargins<2 && isTRUE(is.na(object@mktElast))){stop("At least 2 elements of 'margins' must not be NA in order to calibrate demand parameters")}
+             if(nMargins<1 && !isTRUE(is.na(object@mktElast))){stop("At least 1 element of 'margins' must not be NA in order to calibrate demand parameters")}
+             
 
 
+             return(NULL)
 
          }
 
@@ -60,6 +64,7 @@ setMethod(
      labels     <- object@labels
      ownerPre   <- object@ownerPre
      parmStart  <- object@parmStart
+     mktElast   <- ifelse(length(object@mktElast) == 0, NA, object@mktElast)
      nprod=length(shares)
 
      cancalibrate <- apply(diversion,1,function(x){!any(x==0)})
@@ -74,7 +79,7 @@ setMethod(
      minD <- function(s){
 
        #enforce symmetry
-       mktElast = s[2]
+       thismktElast = s[2]
        betas  =   s[1]
 
        betas <- -diversion[idx,]/diversion[,idx] * betas
@@ -82,7 +87,7 @@ setMethod(
        B = t(diversion * betas)
        #diag(B)=  betas - rowSums(B) #enforce homogeneity of degree zero
 
-       elast <- t(B/shares) + shares * (mktElast + 1) #Caution: returns TRANSPOSED elasticity matrix
+       elast <- t(B/shares) + shares * (thismktElast + 1) #Caution: returns TRANSPOSED elasticity matrix
        diag(elast) <- diag(elast) - 1
 
        marginsCand <- -1 * as.vector(solve(elast * ownerPre) %*% (shares * diag(ownerPre))) / shares
@@ -92,10 +97,11 @@ setMethod(
        m2 <- diversion/t(diversion) - tcrossprod(1/betas,betas) 
        m2 <-  m2[upper.tri(m2)]
        m2 <- m2[is.finite(m2) & m2 != 0]
+       m3 <- thismktElast - mktElast
        #m2 <- as.vector(diversion +  t(B)/diag(B)) #measure distance between observed and predicted diversion
 
 
-       measure=c(m1,m2)
+       measure=c(m1,m2,m3)
 
       
        return(sum(measure^2,na.rm=TRUE))
@@ -328,7 +334,7 @@ setMethod(
 
 
      Bpost      <- divPre * sharesPre * ownerPost
-     marginPost <- -1 * as.vector(ginv(Bpost) %*% (diag(ownerPost)/diag(elastPre))
+     marginPost <- -1 * as.vector(MASS::ginv(Bpost) %*% (diag(ownerPost)/diag(elastPre))
                                   )
 
      cmcr <- (marginPost - marginPre)/(1 - marginPre)
@@ -383,7 +389,7 @@ setMethod(
      shares     <- calcShares(object,TRUE)
 
      elastPre <-  t(elast(object,TRUE))
-     marginPre <-  -1 * as.vector(ginv(elastPre * ownerPre) %*% (shares * diag(ownerPre))) / shares
+     marginPre <-  -1 * as.vector(MASS::ginv(elastPre * ownerPre) %*% (shares * diag(ownerPre))) / shares
 
      if(preMerger){
          names(marginPre) <- object@labels
@@ -463,123 +469,12 @@ setMethod(
 
 
 
-setMethod(
- f= "show",
- signature= "AIDS",
- definition=function(object){
-
-     print(object@priceDelta*100)
-
-}
- )
-
-
-
-
-setMethod(
- f= "summary",
- signature= "AIDS",
- definition=function(object,revenue=TRUE,parameters=FALSE,digits=2,...){
-
-
-     curWidth <-  getOption("width")
-
-     isParty <- as.numeric(rowSums( abs(object@ownerPost - object@ownerPre))>0)
-     isParty <- factor(isParty,levels=0:1,labels=c(" ","*"))
-
-
-     pricePre   <-  object@pricePre
-     pricePost  <-  object@pricePost
-
-     outPre  <-  calcShares(object,TRUE,revenue) * 100
-     outPost <-  calcShares(object,FALSE,revenue) * 100
-
-     mcDelta <- object@mcDelta * 100
-
-     outDelta <- (outPost/outPre - 1) * 100
-
-     priceDelta   <-  object@priceDelta * 100
-
-
-
-         results <- data.frame(priceDelta=priceDelta,sharesPre=outPre,
-                               sharesPost=outPost,outputDelta=outDelta)
-
-
-
-     if(!any(is.na(pricePre))){
-         results <- cbind(pricePre=pricePre,pricePost=pricePost,results)
-        }
-
-     if(sum(abs(mcDelta))>0) results <- cbind(results,mcDelta=mcDelta)
-
-     rownames(results) <- paste(isParty,object@labels)
-
-     cat("\nMerger simulation results under '",class(object),"' demand:\n\n",sep="")
-
-
-     options("width"=100) # this width ensures that everything gets printed on the same line
-     print(round(results,digits),digits=digits)
-     options("width"=curWidth) #restore to current width
-
-     cat("\n\tNotes: '*' indicates merging parties' products. Deltas are percent changes.\n")
-     if(revenue){cat("\tOutput is based on revenues.\n")}
-     else{cat("\tOutput is based on units sold.\n")}
-     results <- cbind(isParty, results)
-
-     cat("\n\nShare-Weighted Price Change:",round(sum(outPost/100*priceDelta),digits),sep="\t")
-     cat("\nShare-Weighted CMCR:",round(sum(cmcr(object)*outPost[isParty=="*"])/sum(outPost[isParty=="*"]),digits),sep="\t")
-
-     ##Only compute upp if prices are supplied
-     thisUPP <- tryCatch(upp(object),error=function(e) FALSE)
-     if(!is.logical(thisUPP)){
-       cat("\nShare-Weighted Pricing Pressure:",round(sum(thisUPP*outPost[isParty=="*"],na.rm=TRUE)/sum(outPost[isParty=="*"],na.rm=TRUE),digits),sep="\t")}
-
-
-     if(!any(is.na(pricePre))){
-         cat("\nCompensating Variation (CV):",round(CV(object,...),digits),sep="\t")
-         }
-     cat("\n\n")
-
-
-
-
-     if(parameters){
-
-         cat("\nAggregate Elasticity Estimate:",round(object@mktElast,digits),sep="\t")
-         cat("\n\n")
-         cat("\nDemand Parameter Estimates:\n\n")
-         print(round(object@slopes,digits))
-         cat("\n\n")
-
-
-          if(.hasSlot(object,"intercepts") && all(!is.na(object@intercepts))){
-
-              cat("\nIntercepts:\n\n")
-              print(round(object@intercepts,digits))
-              cat("\n\n")
-
-             }
-         if(hasMethod("getNestsParms",class(object))){
-             cat("\nNesting Parameter Estimates:\n\n")
-              print(round(getNestsParms(object),digits))
-
-             cat("\n\n")
-             }
-
-
-     }
-
-     rownames(results) <- object@labels
-     return(invisible(results))
-
-
-     })
 
 
 
 aids <- function(shares,margins,prices,diversions,
                  ownerPre,ownerPost,
+                 mktElast = NA_real_,
                  mcDelta=rep(0, length(shares)),
                  subset=rep(TRUE, length(shares)),
                  parmStart= rep(NA_real_,2),
@@ -605,7 +500,7 @@ aids <- function(shares,margins,prices,diversions,
 
     ## Create AIDS container to store relevant data
     result <- new("AIDS",shares=shares,mcDelta=mcDelta,subset=subset,
-                  margins=margins, prices=prices, quantities=shares,
+                  margins=margins, prices=prices, quantities=shares,  mktElast = mktElast,
                   ownerPre=ownerPre,ownerPost=ownerPost, parmStart=parmStart,
                   diversion=diversions,
                   priceStart=priceStart,labels=labels)

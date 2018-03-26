@@ -37,7 +37,7 @@ setMethod(
               ## Minimize the distance between observed and predicted  ex Ante margins
               minD <- function(alpha){
 
-                  measure <- margins + log(1 / (1-firmShares))/( alpha * firmShares)
+                  measure <- 1 - log(1-firmShares)/( alpha * firmShares)/margins
                  
                   measure <- sum((measure)^2,na.rm=TRUE)
 
@@ -104,7 +104,7 @@ setMethod(
     shares <- calcShares(object,preMerger=preMerger,revenue=FALSE)
     shares <- shares[subset]
     firmShares <- drop(owner %*% shares)
-    margins[subset] <-  -log(1/(1-firmShares))/(alpha * firmShares) 
+    margins[subset] <-  log(1-firmShares)/(alpha * firmShares) 
     
     if(exAnte){ margins <-  margins * shares}
     
@@ -137,7 +137,17 @@ setMethod(
     
     names(mc) <- object@labels
     
-    return(as.vector(mc))
+    mc <- as.vector(mc)
+    
+    isNegMC <- mc < 0
+    
+    if( preMerger && any(isNegMC, na.rm = TRUE)){
+      
+      warning(paste("Negative marginal costs were calibrated for the following firms:", paste(object@labels[isNegMC], collapse=",")))
+      
+    }
+    
+    return(mc)
   }
 )
 
@@ -270,11 +280,11 @@ setMethod(
     if(exAnte){sharesPost <- calcShares(object, preMerger=FALSE)}
     else{sharesPost <- rep(1,length(subset))}
     
-    if(levels){
+    
       result <- calcMargins(object, preMerger=FALSE,exAnte=exAnte,subset=subset) + mcDelta*sharesPost -
         calcMargins(object, preMerger=TRUE,exAnte=exAnte)
-    }
-    else{result <- result/calcPrices(object,preMerger = TRUE, exAnte = exAnte )}
+    
+  if(!levels){result <- result/calcPrices(object,preMerger = TRUE, exAnte = exAnte )}
     
     names(result) <- object@labels
     return(result)

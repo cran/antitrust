@@ -63,6 +63,11 @@ setGeneric (
  )
 
 setGeneric (
+  name= "calcDiagnostics",
+  def=function(object,...){standardGeneric("calcDiagnostics")}
+)
+
+setGeneric (
  name= "calcQuantities",
  def=function(object,...){standardGeneric("calcQuantities")}
  )
@@ -152,6 +157,11 @@ setGeneric (
  def=function(object,...){standardGeneric("cmcr")}
  )
 
+setGeneric (
+  name= "getParms",
+  def=function(object,...){standardGeneric("getParms")}
+)
+
 
 setGeneric (
  name= "getNestsParms",
@@ -217,7 +227,7 @@ setMethod(
          revenue<- calcShares(object,preMerger,revenue=TRUE)
 
          elast <-  elast(object,preMerger)
-         margins <-  -1 * as.vector(ginv(t(elast)*owner) %*% (revenue * diag(owner))) / revenue
+         margins <-  -1 * as.vector(MASS::ginv(t(elast)*owner) %*% (revenue * diag(owner))) / revenue
 
 
      }
@@ -248,7 +258,7 @@ setMethod(
               object@pricePre <- object@prices
 
 
-              marginPre <- calcMargins(object,TRUE)
+              marginPre <- calcMargins(object,preMerger = TRUE)
 
               mc <- (1 - marginPre) * object@prices
 
@@ -257,8 +267,17 @@ setMethod(
               }
 
              names(mc) <- object@labels
+             
+             mc <- as.vector(mc)
+             
+             isNegMC <- mc < 0
 
-              return(as.vector(mc))
+             if( preMerger && any(isNegMC, na.rm = TRUE)){
+                
+               warning(paste("Negative marginal costs were calibrated for the following firms:", paste(object@labels[isNegMC], collapse=",")))
+             }
+             
+              return(mc)
           }
           )
 
@@ -284,7 +303,7 @@ setMethod(
       output <- calcQuantities(object,preMerger)
     }
     else{
-      warning("'calcQuantities' method not defined for class ",class(object),". Using 'calcShares' instead")
+      #warning("'calcQuantities' method not defined for class ",class(object),". Using 'calcShares' instead")
       output <- calcShares(object,preMerger,revenue=FALSE)
     }
 
@@ -474,14 +493,14 @@ setMethod(
     equilibria$Cost=equilibria$Demand
 
 
-    thisPlot=ggplot(result,(aes_string(x='output',y='price',color='Demand',group='Demand'))) + geom_line() + theme_bw() + theme(legend.position="bottom", legend.direction="horizontal",legend.title=element_blank())
-    thisPlot=thisPlot + facet_wrap(~prod,scales="free_x")
+    thisPlot=ggplot2::ggplot(result,(ggplot2::aes_string(x='output',y='price',color='Demand',group='Demand'))) + ggplot2::geom_line() + ggplot2::theme_bw() + ggplot2::theme(legend.position="bottom", legend.direction="horizontal",legend.title=ggplot2::element_blank())
+    thisPlot=thisPlot + ggplot2::facet_wrap(~prod,scales="free_x")
 
-    thisPlot=thisPlot + geom_vline(aes_string(xintercept = "output",group="Demand",colour="Demand"),linetype=3,equilibria[,c("output","Demand","prod")] )
-    thisPlot=thisPlot + geom_hline(aes_string(yintercept = "price",group="Demand",colour="Demand"),linetype=3,equilibria[,c("price","Demand","prod")] )
-    thisPlot=thisPlot + geom_point(aes_string(y="price",x="output",color="Demand",group="Demand"),equilibria)
+    thisPlot=thisPlot + ggplot2::geom_vline(ggplot2::aes_string(xintercept = "output",group="Demand",colour="Demand"),linetype=3,equilibria[,c("output","Demand","prod")] )
+    thisPlot=thisPlot + ggplot2::geom_hline(ggplot2::aes_string(yintercept = "price",group="Demand",colour="Demand"),linetype=3,equilibria[,c("price","Demand","prod")] )
+    thisPlot=thisPlot + ggplot2::geom_point(ggplot2::aes_string(y="price",x="output",color="Demand",group="Demand"),equilibria)
 
-    thisPlot=thisPlot + geom_hline(aes_string(yintercept = "mc",group="Cost",color="Cost"),data=equilibria[,c("mc","Cost","prod")],show_guide=TRUE)
+    thisPlot=thisPlot + ggplot2::geom_hline(ggplot2::aes_string(yintercept = "mc",group="Cost",color="Cost"),data=equilibria[,c("mc","Cost","prod")],show_guide=TRUE)
 
     #if(!isTRUE(all.equal(mcPre,mcPost,check.names=FALSE))){
     #  thisPlot=thisPlot + geom_hline(aes(yintercept = mc), color="orange",data=data.frame(mc=mcPost[mcPost!=mcPre],prod=labels[mcPost!=mcPre]),show_guide=TRUE)
@@ -499,14 +518,20 @@ setMethod(
 setMethod(
  f= "summary",
  signature= "Bertrand",
- definition=function(object,revenue=TRUE,shares=TRUE,levels=FALSE,parameters=FALSE,digits=2,...){
+ definition=function(object,revenue=TRUE,shares=TRUE,levels=FALSE,parameters=FALSE,market=FALSE,digits=2,...){
 
      curWidth <-  getOption("width")
 
 
      pricePre   <-  object@pricePre
      pricePost  <-  object@pricePost
-     priceDelta <- calcPriceDelta(object,levels=levels)
+     
+     if(grepl("aids",class(object),ignore.case=TRUE)){
+     
+       priceDelta <-  object@priceDelta 
+     }
+     else{ priceDelta <- calcPriceDelta(object,levels=levels)}
+     
      if(!levels) priceDelta <- priceDelta *100
 
      if(!shares && hasMethod("calcQuantities",class(object))){
@@ -543,7 +568,7 @@ setMethod(
                            priceDelta=priceDelta,outputPre=outPre,
                            outputPost=outPost,outputDelta=outDelta)
 
-     colnames(results)[colnames(results) %in% c("outputPre","outputPost")] <- sumlabels
+     
 
      if(sum(abs(mcDelta))>0) results <- cbind(results,mcDelta=mcDelta)
 
@@ -551,37 +576,58 @@ setMethod(
      rownames(results) <- paste(isParty,object@labels)
 
      sharesPost <- calcShares(object,FALSE,revenue)
+     
+     if(market){
+       
+       thiscmcr <- thiscv <- NA
+       try(thiscmcr <- cmcr(object), silent=TRUE)
+       try(thiscv <- CV(object),silent = TRUE)
+     
+       thispsdelta  <- NA_real_
+       try(thispsdelta  <- sum(calcProducerSurplus(object,preMerger=FALSE) - calcProducerSurplus(object,preMerger=TRUE),na.rm=TRUE),silent=TRUE)
+       
+       isparty <- isParty == "*"
+      
+       
+       results <- with(results,
+                       data.frame(
+                         'HHI Change' = as.integer(HHI(outputPre/sum(outputPre),owner=object@ownerPost) - HHI(outputPre/sum(outputPre),owner=object@ownerPre)),
+                         'Industry Price Change (%)' = sum(priceDelta * outputPost/sum(outputPost),na.rm=TRUE),
+                         'Merging Party Price Change (%)'= sum(priceDelta[isparty] * outputPost[isparty], na.rm=TRUE) / sum(outputPost[isparty]),
+                         'Compensating Marginal Cost Reduction (%)' = sum(thiscmcr * outputPost[isparty]) / sum(outputPost[isparty]),
+                         'Consumer Harm ($/unit)' = -1*thiscv,
+                         'Producer Benefit ($/unit)' = thispsdelta,
+                         'Overall Effect ($/unit)'= -1*thiscv + thispsdelta,
+                         check.names=FALSE
+                       ))
+      
+                       
+     }
+     
+     colnames(results)[colnames(results) %in% c("outputPre","outputPost")] <- sumlabels
 
      cat("\nMerger simulation results under '",class(object),"' demand:\n\n",sep="")
 
-     options("width"=100) # this width ensures that everything gets printed on the same line
-     print(round(results,digits),digits=digits)
+     options("width"=ifelse(market,25,100)) # this width ensures that everything gets printed on the same line
+     print(round(results,digits),digits=digits, row.names=ifelse(market, FALSE, TRUE))
      options("width"=curWidth) #restore to current width
 
-     cat("\n\tNotes: '*' indicates merging parties' products.\n ")
-     if(levels){cat("\tDeltas are level changes.\n")}
-     else{cat("\tDeltas are percent changes.\n")}
-     if(revenue){cat("\tOutput is based on revenues.\n")}
-     else{cat("\tOutput is based on units sold.\n")}
-
-     results <- cbind(isParty, results)
-
-     cat("\n\nShare-Weighted Price Change:",round(sum(sharesPost*priceDelta,na.rm=TRUE),digits),sep="\t")
-     ##Only compute cmcr if cmcr method doesn't yield an error
-     thisCMCR <- tryCatch(cmcr(object),error=function(e) FALSE)
-     if(!is.logical(thisCMCR)){
-     cat("\nShare-Weighted CMCR:",round(sum(cmcr(object)*sharesPost[isParty=="*"],na.rm=TRUE)/sum(sharesPost[isParty=="*"],na.rm=TRUE),digits),sep="\t")
-     } 
      
-     ##Only compute upp if prices are supplied
-     thisUPP <- tryCatch(upp(object),error=function(e) FALSE)
-     if(!is.logical(thisUPP)){
-     cat("\nShare-Weighted Pricing Pressure:",round(sum(thisUPP*sharesPost[isParty=="*"],na.rm=TRUE)/sum(sharesPost[isParty=="*"],na.rm=TRUE),digits),sep="\t")}
 
-     ##Only compute CV if prices  are supplied
-     thisCV <- tryCatch(CV(object,...),error=function(e) FALSE)
-     if(!is.logical(thisCV)){
-     cat("\nCompensating Variation (CV):",round(thisCV,digits),sep="\t")}
+     if(!market){
+      
+       results <- cbind(isParty, results)
+      rownames(results) <- object@labels
+     
+       cat("\n\tNotes: '*' indicates merging parties' products.\n ")
+       if(levels){cat("\tDeltas are level changes.\n")}
+       else{cat("\tDeltas are percent changes.\n")}
+       if(revenue){cat("\tOutput is based on revenues.\n")}
+       else{cat("\tOutput is based on units sold.\n")}
+     
+     }
+
+  
 
      cat("\n\n")
 
@@ -610,7 +656,7 @@ setMethod(
 
          }
 
-     rownames(results) <- object@labels
+     
      return(invisible(results))
 
  })
@@ -658,12 +704,12 @@ setMethod(
      isParty <- rowSums( abs(object@ownerPost - object@ownerPre) ) > 0
 
      ##Compute pre-merger margins
-     marginPre  <- calcMargins(object,TRUE)
+     marginPre  <- calcMargins(object,preMerger=TRUE)
 
 
      ##compute post-merger margins evaluated at pre-merger prices
      object@ownerPre <- object@ownerPost
-     marginPost <- calcMargins(object,TRUE)
+     marginPost <- calcMargins(object,preMerger=TRUE)
 
      cmcr <- (marginPost - marginPre)/(1 - marginPre)
      names(cmcr) <- object@labels
@@ -775,3 +821,59 @@ setMethod(
 
               }
           )
+
+setMethod(
+  f= "calcDiagnostics",
+  signature= "Bertrand",
+  definition=function(object,labels=object@labels){
+    
+    obsPrices <- object@prices
+    obsShares <- object@shares
+    obsMargins <- object@margins
+    obsElast <- object@mktElast
+    
+    prePrices <- unname(drop(object@pricePre))
+    preMargins <- drop(calcMargins(object, preMerger=TRUE))
+    preShares <- drop(calcShares(object, preMerger=TRUE))
+    preShares <- drop(preShares/sum(preShares))
+    preElast <- elast(object, preMerger=TRUE, market=TRUE)
+    
+    res <- data.frame(
+      Prices= 1 - obsPrices/prePrices,
+      Shares=1 - obsShares/preShares,
+      Margins= 1 - obsMargins/preMargins,
+      'Market Elasticity'= 1 - obsElast/preElast,
+      check.names = FALSE
+    )*100
+    
+    rmThese <- colSums(abs(res),na.rm=TRUE)
+    
+    res[-1,'Market Elasticity'] <- NA
+    
+    
+  
+     rownames(res) <- labels
+    
+    
+    return(res)
+  }
+)
+
+
+setMethod(
+  f= "getParms",
+  signature= "Bertrand",
+  definition=function(object,digits=10){
+if(is.list(object@slopes)){
+  return(lapply(object@slopes,round,digits=digits))
+}
+else{
+  return(
+    list(slopes = round(object@slopes,digits),
+         intercepts =  round(object@intercepts,digits)
+         )
+    )
+}
+
+  })
+

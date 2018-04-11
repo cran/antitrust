@@ -266,9 +266,11 @@ setMethod(
                   mc <- mc*(1+object@mcDelta)
               }
 
+             mc <- as.vector(mc)
+              
              names(mc) <- object@labels
              
-             mc <- as.vector(mc)
+            
              
              isNegMC <- mc < 0
 
@@ -518,7 +520,7 @@ setMethod(
 setMethod(
  f= "summary",
  signature= "Bertrand",
- definition=function(object,revenue=TRUE,shares=TRUE,levels=FALSE,parameters=FALSE,market=FALSE,digits=2,...){
+ definition=function(object,revenue=TRUE,shares=TRUE,levels=FALSE,parameters=FALSE,market=FALSE,insideOnly = TRUE,digits=2,...){
 
      curWidth <-  getOption("width")
 
@@ -550,8 +552,13 @@ setMethod(
          if(!shares){warning("'shares' equals FALSE but 'calcQuantities' not defined. Reporting shares instead of quantities")}
 
          outPre  <-  calcShares(object,preMerger=TRUE,revenue=revenue) * 100
-         outPost <-  calcShares(object,preMerger=FALSE,revenue=revenue) * 100
-
+         outPost <-  calcShares(object,preMerger=FALSE,revenue=revenue) * 100 
+         
+         if(insideOnly){
+            outPre <- outPre/sum(outPre)* 100
+            outPost <- outPost/sum(outPost)* 100
+         }
+         
          sumlabels=paste("shares",c("Pre","Post"),sep="")
      }
 
@@ -600,6 +607,8 @@ setMethod(
                          'Overall Effect ($/unit)'= -1*thiscv + thispsdelta,
                          check.names=FALSE
                        ))
+       
+       if(levels){colnames(results) <- gsub("%","$/unit",colnames(results))}
       
                        
      }
@@ -846,9 +855,9 @@ setMethod(
       check.names = FALSE
     )*100
     
-    rmThese <- colSums(abs(res),na.rm=TRUE)
+    #rmThese <- colSums(abs(res),na.rm=TRUE)
     
-    res[-1,'Market Elasticity'] <- NA
+    #res[-1,'Market Elasticity'] <- NA
     
     
   
@@ -865,15 +874,19 @@ setMethod(
   signature= "Bertrand",
   definition=function(object,digits=10){
 if(is.list(object@slopes)){
-  return(lapply(object@slopes,round,digits=digits))
+  result <- lapply(object@slopes,round,digits=digits)
 }
 else{
-  return(
-    list(slopes = round(object@slopes,digits),
+  
+ result <-  list(slopes = round(object@slopes,digits),
          intercepts =  round(object@intercepts,digits)
          )
-    )
+    
 }
 
+    result$mc <- round(calcMC(object, preMerger=TRUE),digits)
+    
+    return(result)
+    
   })
 

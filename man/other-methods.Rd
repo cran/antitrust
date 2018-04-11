@@ -58,6 +58,7 @@
 \alias{calcDiagnostics}
 \alias{calcDiagnostics,ANY-method}
 \alias{calcDiagnostics,Bertrand-method}
+\alias{calcDiagnostics,Cournot-method}
 \alias{calcSlopes}
 \alias{calcSlopes,ANY-method}
 \alias{calcSlopes,AIDS-method}
@@ -119,7 +120,7 @@
 \S4method{ownerToVec}{Antitrust}(object,preMerger=TRUE)
 \S4method{plot}{Bertrand}(x,scale=.1)
 \S4method{summary}{Bertrand}(object,revenue=TRUE,shares=TRUE,levels=FALSE,
-parameters=FALSE,market=FALSE,digits=2,...)
+parameters=FALSE,market=FALSE,insideOnly=TRUE,digits=2,...)
 
 
 }
@@ -143,6 +144,8 @@ parameters=FALSE,market=FALSE,digits=2,...)
   \item{parameters}{If TRUE, reports demand and cost parameters. Default
     is FALSE}
      \item{levels}{If TRUE, report results in levels. If FALSE, report results in percents. Default is FALSE}
+     \item{insideOnly}{If TRUE, normalizes sum of inside shares to 1. Default
+    is FALSE}
     \item{digits}{The number of significant digits to round
   printed results.}
   \item{scale}{The proportion below marginal cost and above equilbrium price that should be plotted. Default is .1 }
@@ -196,8 +199,8 @@ parameters=FALSE,market=FALSE,digits=2,...)
     Nash-Bertrand or Cournot game. For "LogitCap", assumes firms are
     playing a Nash-Bertrand or Cournot game with capacity constraints.
   }
-  \item{calcDiagnostics}{\code{signature(object=Bertrand,labels=object@labels)}}{
-    Computes he perentage difference between predicted and observed pre-merger prices, shares, margins and market elasticities (if supplied) . \sQuote{labels} is used to specify row labels.
+  \item{calcDiagnostics}{\code{signature(object=c(Bertrand,Cournot),labels}}{
+    Computes the percentage difference between predicted and observed pre-merger prices, shares, margins and market elasticities (if supplied) . \sQuote{labels} is used to specify row labels.
   }
    \item{calcVC}{\code{signature(object=Cournot,preMerger=TRUE)}}{
     Computes either pre- or post-merger variable costs. Variable costs

@@ -11,8 +11,8 @@
 
 \usage{ces(prices,shares,margins,
                 ownerPre,ownerPost,
-                shareInside = 1,
                 normIndex=ifelse(sum(shares)<1,NA,1),
+                insideSize = NA_real_,
                 mcDelta=rep(0,length(prices)),
                 subset=rep(TRUE, length(prices)),
                 priceOutside = 1,
@@ -27,6 +27,7 @@
 ces.alm(prices,shares,margins,
                 ownerPre,ownerPost,
                 mktElast = NA_real_,
+                insideSize = NA_real_,
                 mcDelta=rep(0,length(prices)),
                 subset=rep(TRUE,length(prices)),
                 priceOutside=1,
@@ -42,8 +43,8 @@ ces.alm(prices,shares,margins,
 ces.nests(prices,shares,margins,
                 ownerPre,ownerPost,
                 nests=rep(1,length(shares)),
-                shareInside = 1,
                 normIndex=ifelse(sum(shares)<1,NA,1),
+                insideSize = NA_real_,
                 mcDelta=rep(0,length(prices)),
                 subset=rep(TRUE, length(prices)),
                 priceOutside = 1,
@@ -74,13 +75,9 @@ ces.nests(prices,shares,margins,
     indicate which firm produced a product after the merger OR
     a k x k matrix of post-merger ownership shares.}
     \item{mktElast}{a negative value indicating market elasticity. Default is NA.}
-  \item{shareInside}{The proportion that a typical consumer spends on
-     all products included in the \sQuote{prices} vector. Only needed to calculate
-     compensating variation.
-     Default is 1, meaning that all of a consumer's
-     income is spent on products within the market.}
   \item{normIndex}{An integer specifying the product index against which
      the mean values of all other products are normalized. Default is 1.}
+  \item{insideSize}{total revenues included in the market. }
   \item{mcDelta}{A vector of length k where each element equals the
     proportional change in a product's marginal costs due to
     the merger. Default is 0, which assumes that the merger does not
@@ -208,7 +205,7 @@ names(price) <-
     prodNames
 
 result.ces <-ces(price,shares,margins,ownerPre=ownerPre,ownerPost=ownerPost,
-                 shareInside=.99,labels=prodNames)
+                labels=prodNames)
 
 print(result.ces)           # return predicted price change
 summary(result.ces)         # summarize merger simulation
@@ -224,8 +221,6 @@ upp(result.ces)             #calculate Upwards Pricing Pressure Index
 
 CV(result.ces)              #calculate compensating variation as a percent of
                             #representative consumer income
-CV(result.ces,1e9)          #calculate compensating variation in dollars
-                            #1e9 is an estimate of total US beer expenditure
 
 ## Implement the Hypothetical Monopolist Test
 ## for BUD and OLD STYLE using a 5\% SSNIP

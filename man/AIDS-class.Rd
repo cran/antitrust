@@ -25,14 +25,15 @@
 Objects can be created by using the constructor function \code{\link{aids}}.
 %%  ~~ describe objects here ~~
 }
+
 \section{Slots}{
    Let k denote the number of products produced by all firms.
   \describe{
+  \item{\code{priceStart}:}{A length-k vector of starting prices for the non-linear solver}
+  \item{\code{insideSize}:}{A positive number equal to total pre-merger revenues for all products
+                            included in the simulation.}
     \item{\code{mktElast}:}{A negative number equal to the industry pre-merger
       price elasticity.}
-    \item{\code{priceStart}:}{A length k vector who elements equal to an
-      initial guess of the proportional change in prices caused by the
-      merger.}
       \item{\code{parmStart}:}{A length 2 vector who elements equal to an
       initial of a single diagonal element of the matrix of slope coefficients, as well as the market elasticity. }
     \item{\code{priceDelta}:}{A length k vector containing the
@@ -84,14 +85,6 @@ Objects can be created by using the constructor function \code{\link{aids}}.
     \item{\code{\link{elast}}}{\code{signature(object , preMerger
 	= TRUE)}}{ Computes a k x k matrix of own and cross-price
       elasticities.}
-    \item{\code{show}}{\code{signature(object)}}{ Displays
-      the percentage change in prices due to the merger. }
-    \item{summary}{\code{signature(object,revenue=TRUE,parameters=FALSE,digits=2,..)}}{ Summarizes
-      the effect of the merger, including price and revenue
-      changes. Setting \sQuote{revenue} equal to FALSE reports quantity rather
-      than revenue changes. Setting \sQuote{parameters} equal to TRUE reports
-      all demand parameters. \sQuote{digits} controls the number of significant
-      digits reported in output.}
   }
 }
 

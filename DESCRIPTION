@@ -1,8 +1,8 @@
 Package: antitrust
 Type: Package
 Title: Tools for Antitrust Practitioners
-Version: 0.99.9
-Date: 2018-05-17
+Version: 0.99.10
+Date: 2018-06-09
 Author: Charles Taragin and Michael Sandfort
 Maintainer: Charles Taragin <charles.taragin@usdoj.gov>
 Imports: methods, MASS, evd, BB, numDeriv
@@ -16,6 +16,6 @@ Collate: Antitrust.R Bertrand.R logit.R linear.R loglin.R logitALM.R
         auction2ndlogit.R Cournot.R Stackelberg.R auction2ndlogitALM.R
         antitrust_shiny.R cesALM.R logitCapALM.R bert.R
 NeedsCompilation: no
-Packaged: 2018-06-07 21:55:36 UTC; TaragIC
+Packaged: 2018-06-10 03:40:44 UTC; TaragIC
 Repository: CRAN
-Date/Publication: 2018-06-07 22:16:38 UTC
+Date/Publication: 2018-06-10 13:24:33 UTC

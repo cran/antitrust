@@ -356,12 +356,9 @@ setMethod(
   definition=function(object){
     
   mktSize = object@mktSize
-  
-  marginPre <- calcMargins(object, preMerger = TRUE, exAnte= TRUE)
-  marginPost <- calcMargins(object, preMerger = FALSE, exAnte= TRUE)
-  
-  result <- sum(marginPost) - sum(marginPre)
-  
+
+  result <- sum(calcPriceDelta(object, exAnte = TRUE))
+
   if(!is.na(mktSize)){result <- mktSize * result}
   
   return(result)

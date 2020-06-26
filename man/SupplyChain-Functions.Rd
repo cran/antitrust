@@ -3,22 +3,37 @@
 \name{SupplyChain-Functions}
 \alias{SupplyChain-Functions}
 \alias{vertical}
-\alias{vertical.barg.bert}
-\alias{vertical.varg.2nd}
 \alias{vertical.barg}
 \title{Supply Chain Merger Simulation}
 \usage{
-vertical.barg(supplyDown = c("bertrand", "2nd"), sharesDown, pricesDown,
-  marginsDown, ownerPreDown, ownerPostDown, mcDeltaDown = rep(0,
-  length(pricesDown)), pricesUp, marginsUp, ownerPreUp, ownerPostUp,
+vertical.barg(
+  supplyDown = c("bertrand", "2nd"),
+  sharesDown,
+  pricesDown,
+  marginsDown,
+  ownerPreDown,
+  ownerPostDown,
+  nests = rep(NA, length(pricesDown)),
+  diversions = diversions,
+  mcDeltaDown = rep(0, length(pricesDown)),
+  pricesUp,
+  marginsUp,
+  ownerPreUp,
+  ownerPostUp,
   mcDeltaUp = rep(0, length(pricesUp)),
-  normIndex = ifelse(isTRUE(all.equal(sum(sharesDown), 1, check.names =
-  FALSE)), 1, NA), subset = rep(TRUE, length(pricesDown)),
-  insideSize = NA_real_, priceOutside = 0,
-  priceStartDown = pricesDown, priceStartUp = pricesUp,
-  isMax = FALSE, constrain = c("global", "pair", "wholesaler",
-  "retailer"), control.slopes, control.equ, labels = paste0("Prod",
-  1:length(pricesUp)), ...)
+  normIndex = ifelse(isTRUE(all.equal(sum(sharesDown), 1, check.names = FALSE)), 1, NA),
+  subset = rep(TRUE, length(pricesDown)),
+  insideSize = NA_real_,
+  priceOutside = 0,
+  priceStartDown = pricesDown,
+  priceStartUp = pricesUp,
+  isMax = FALSE,
+  constrain = c("global", "pair", "wholesaler", "retailer"),
+  control.slopes,
+  control.equ,
+  labels = paste0("Prod", 1:length(pricesUp)),
+  ...
+)
 }
 \arguments{
 \item{supplyDown}{A length 1 character vector that specifies whether the downstream
@@ -30,16 +45,20 @@ between 0 and 1.}
 
 \item{pricesDown}{A length k vector of downstream product prices.}
 
-\item{marginsDown}{A length k vector of downstream product margins, some of which may
+\item{marginsDown}{A length k vector of downstream product margins in levels (e.g. dollars), some of which may
 equal NA.}
 
-\item{ownerPreDown}{EITHER a vector of length k whose values
-indicate which downstream firm produced a product pre-merger OR
-a k x k matrix of pre-merger ownership shares.}
+\item{ownerPreDown}{A vector of length k whose values
+indicate which downstream firm produced a product pre-merger.}
 
-\item{ownerPostDown}{EITHER a vector of length k whose values
-indicate which downstream firm produced a product after the merger OR
-a k x k matrix of post-merger ownership shares.}
+\item{ownerPostDown}{A vector of length k whose values
+indicate which downstream firm produced a product post-merger.}
+
+\item{nests}{A length k factor of product nests.}
+
+\item{diversions}{A k x k matrix of diversion ratios with diagonal
+elements equal to -1. Default is missing, in which case diversion
+according to share is assumed.}
 
 \item{mcDeltaDown}{A vector of length k where each element equals the
 proportional change in a downstream firm's product-level marginal costs due to
@@ -48,16 +67,14 @@ proportional change in a downstream firm's product-level marginal costs due to
 
 \item{pricesUp}{A length k vector of upstream product prices.}
 
-\item{marginsUp}{A length k vector of upstream product margins, some of which may
+\item{marginsUp}{A length k vector of upstream product margins in levels (e.g. dollars), some of which may
 equal NA.}
 
-\item{ownerPreUp}{EITHER a vector of length k whose values
-indicate which upstream firm produced a product pre-merger OR
-a k x k matrix of pre-merger ownership shares.}
+\item{ownerPreUp}{A vector of length k whose values
+indicate which upstream firm produced a product pre-merger.}
 
-\item{ownerPostUp}{EITHER a vector of length k whose values
-indicate which upstream firm produced a product after the merger OR
-a k x k matrix of post-merger ownership shares.}
+\item{ownerPostUp}{A vector of length k whose values
+indicate which upstream firm produced a product after the merger.}
 
 \item{mcDeltaUp}{A vector of length k where each element equals the
 proportional change in a upstream firm's product-level marginal costs due to
@@ -109,8 +126,9 @@ passed to the non-linear equation solver (typically the \code{calcPrices} method
 optimizer used to solve for equilibrium prices.}
 }
 \value{
-\code{vertical.barg.bert} returns an instance of class
-\code{\linkS4class{VertBargBertLogit}}.
+When 'supplyDown' equals "bertand", \code{vertical.barg} returns an instance of class
+\code{\linkS4class{VertBargBertLogit}}. When 'supplyDown' equals "2nd", \code{vertical.barg} returns an instance of class
+\code{\linkS4class{VertBarg2ndLogit}}
 }
 \description{
 Calibrates consumer demand using (Nested) Logit
@@ -129,7 +147,6 @@ Logit demand model. \code{logit} then uses these
 calibrated parameters to simulate a merger between two firms.
 }
 \examples{
-\donttest{
 ## Verical supply with 2 upstream firms,
 ## 2 downstream firms, each offering 
 ## a single product.
@@ -145,6 +162,7 @@ priceOutSide <- 10
 
 
 ## Simulate an upstream horizontal merger
+ownerPostDown <- ownerPreDown
 ownerPostUp <- rep("U1",length(ownerPreUp))
 
 
@@ -160,12 +178,53 @@ ownerPostUp = ownerPostUp,
 priceOutside = priceOutSide)
 
 
-## simulate a horizontal 
-}
+print(simres_up)
+summary(simres_up)
+
+## Simulate a downstream horizontal merger
+ownerPostUp <- ownerPreUp
+ownerPostDown <- ownerPreDown
+ownerPostDown <- rep("D1",length(ownerPreDown))
+
+simres_down <- vertical.barg(sharesDown =shareDown,
+pricesDown = priceDown,
+marginsDown = marginDown,
+ownerPreDown = ownerPreDown,
+ownerPostDown = ownerPostDown,
+pricesUp = priceUp,
+marginsUp = marginUp,
+ownerPreUp = ownerPreUp,
+ownerPostUp = ownerPreUp,
+priceOutside = priceOutSide)
+
+
+print(simres_down)
+summary(simres_down)
+
+
+## Simulate a vertical merger
+ownerPostUp <- ownerPreUp
+ownerPostDown <- ownerPreDown
+ownerPostDown[ownerPostDown == "D1"] <- "U1"
+
+simres_vert <- vertical.barg(sharesDown =shareDown,
+pricesDown = priceDown,
+marginsDown = marginDown,
+ownerPreDown = ownerPreDown,
+ownerPostDown = ownerPostDown,
+pricesUp = priceUp,
+marginsUp = marginUp,
+ownerPreUp = ownerPreUp,
+ownerPostUp = ownerPreUp,
+priceOutside = priceOutSide)
+
+
+print(simres_vert)
+summary(simres_vert)
 }
 \references{
-Sheu, Gloria,  Taragin, Charles (2018). 
-"Simulating Mergers in a Vertical Supply Chain with Bargaining," EAG Discussions Papers 201804, Department of Justice, Antitrust Division.
+Sheu, Gloria,  Taragin, Charles (2020). 
+\href{https://www.researchgate.net/publication/330564874_Simulating_Mergers_in_a_Vertical_Supply_Chain_with_Bargaining}{Simulating mergers in a vertical supply chain with bargaining}
 }
 \author{
 Charles Taragin \email{ctaragin@ftc.gov}

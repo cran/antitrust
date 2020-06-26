@@ -12,23 +12,20 @@
 \alias{calcPrices,AIDS-method}
 \alias{calcPrices,LogitCap-method}
 \alias{calcPrices,Auction2ndLogit-method}
-\alias{calcPrices}
 \alias{calcPrices,VertBargBertLogit-method}
+\alias{calcPrices,VertBarg2ndLogit-method}
+\alias{calcPrices}
 \title{\dQuote{Calculating Prices} Methods}
 \usage{
 \S4method{calcPrices}{Cournot}(object, preMerger = TRUE)
 
-\S4method{calcPrices}{Auction2ndCap}(object, preMerger = TRUE,
-  exAnte = TRUE)
+\S4method{calcPrices}{Auction2ndCap}(object, preMerger = TRUE, exAnte = TRUE)
 
-\S4method{calcPrices}{Logit}(object, preMerger = TRUE, isMax = FALSE,
-  subset, ...)
+\S4method{calcPrices}{Logit}(object, preMerger = TRUE, isMax = FALSE, subset, ...)
 
-\S4method{calcPrices}{Auction2ndLogit}(object, preMerger = TRUE,
-  exAnte = FALSE)
+\S4method{calcPrices}{Auction2ndLogit}(object, preMerger = TRUE, exAnte = FALSE)
 
-\S4method{calcPrices}{LogitCap}(object, preMerger = TRUE,
-  isMax = FALSE, subset, ...)
+\S4method{calcPrices}{LogitCap}(object, preMerger = TRUE, isMax = FALSE, subset, ...)
 
 \S4method{calcPrices}{Linear}(object, preMerger = TRUE, subset, ...)
 
@@ -37,6 +34,8 @@
 \S4method{calcPrices}{AIDS}(object, preMerger = TRUE, ...)
 
 \S4method{calcPrices}{VertBargBertLogit}(object, preMerger = TRUE, ...)
+
+\S4method{calcPrices}{VertBarg2ndLogit}(object, preMerger = TRUE, ...)
 }
 \arguments{
 \item{object}{An instance of the respective class (see description for the classes)}

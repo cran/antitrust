@@ -10,7 +10,8 @@
 #' calcPrices,AIDS-method
 #' calcPrices,LogitCap-method
 #' calcPrices,Auction2ndLogit-method
-#' calcPrices,Auction2ndLogit-method
+#' calcPrices,VertBargBertLogit-method
+#' calcPrices,VertBarg2ndLogit-method
 #' calcPrices
 
 #' @param object An instance of the respective class (see description for the classes)
@@ -469,13 +470,13 @@ setMethod(
     
     up <- object@up
     down <- object@down
+    #isHorizontal <- object@isHorizontal
     
     
     subsetDown <- down@subset
-    subsetUp <- up@subset
     alpha <- down@slopes$alpha
     meanval <- down@slopes$meanval[subsetDown]
-    bargparm <- up@bargpower[subsetDown]
+    
     
     priceStartUp <- up@priceStart
     priceStartDown <- down@priceStart
@@ -484,88 +485,95 @@ setMethod(
     
     nprods <- length(meanval)
     
-    FOC <-function(priceCand
-                      #, preMerger=TRUE  
-                      #subset=rep(TRUE,length(mkt$down$meanval))
-                      #,useEst = FALSE, level = "all"
-                      ){
+    ownerUp <- ownerToMatrix(up, preMerger=preMerger)[subsetDown,subsetDown]
+    ownerDown <- ownerToMatrix(down, preMerger=preMerger)[subsetDown,subsetDown]
+    
+    if(preMerger){
+      #ownerUp <- up@ownerPre[subsetDown,subsetDown]
+      #ownerDown <- down@ownerPre[subsetDown,subsetDown]
+      up@ownerPre <- ownerUp
+      down@ownerPre <- ownerDown
+      bargparm <- up@bargpowerPre[subsetDown]
+      mcUp <- up@mcPre[subsetDown]
+      mcDown <- down@mcPre[subsetDown]
+      #ownerVDown <- object@ownerDownPre[subsetDown,subsetDown]
+      #ownerDownLambda <- object@ownerDownLambdaPre[subsetDown,subsetDown]
+      #ownerUpLambda <- object@ownerUpLambdaPre[subsetDown,subsetDown]
+    }
+    
+    else{
+      
+      #ownerUp <- up@ownerPost[subsetDown,subsetDown]
+      #ownerDown <- down@ownerPost[subsetDown,subsetDown]
+      up@ownerPost <- ownerUp
+      down@ownerPost <- ownerDown
+      bargparm <- up@bargpowerPost[subsetDown]
+      mcUp <- up@mcPost[subsetDown]
+      mcDown <- down@mcPost[subsetDown]
+      #ownerVDown <- object@ownerDownPost[subsetDown,subsetDown]
+      #ownerDownLambda <- object@ownerDownLambdaPost[subsetDown,subsetDown]
+      #ownerUpLambda <- object@ownerUpLambdaPost[subsetDown,subsetDown]
+      }
+    
+    
+    
+    
+    
+    
+    
+    FOC <-function(priceCand){
       
        
         
-      
+      thisobj <- object
       priceCandUp= rep(NA, 1,nprods)[subsetDown] 
       priceCandUp <- priceCand[1:length(priceCandUp)]
       priceCandDown <- priceCand[-(1:length(priceCandUp))]
       
-      #v <- mkt$vertical
-      
-      if(preMerger){
-        ownerUp <- up@ownerPre[subsetDown,subsetDown]
-        ownerDown <- down@ownerPre[subsetDown,subsetDown]
-        
-        down@pricePre <- priceCandDown
-        mcUp <- up@mcPre[subsetDown]
-        mcDown <- down@mcPre[subsetDown]
-        
-      }
-      
-      else{
-        
-        ownerUp <- up@ownerPost[subsetDown,subsetDown]
-        ownerDown <- down@ownerPost[subsetDown,subsetDown]
-        
-        down@pricePost <- priceCandDown
-        mcUp <- up@mcPost[subsetDown]
-        mcDown <- down@mcPost[subsetDown]
-      
-        }
-      
-       
-        
-      
-      
-      
-      shareCandDown  <- calcShares(down, preMerger=preMerger,revenue=FALSE)
-      #marginsDownCand <- calcMargins(down, preMerger=preMerger)*priceCandDown
-      
+      if(preMerger){ 
+        up@pricePre <- priceCandUp
+        down@pricePre <- priceCandDown}
+      else{ 
+        up@pricePost <- priceCandUp
+        down@pricePost <- priceCandDown}
      
-      elast <-  -alpha*tcrossprod(shareCandDown)
-      diag(elast) <- alpha*shareCandDown + diag(elast)
-      elast.inv <- try(solve(ownerDown * elast),silent=TRUE)
-      if(class(elast.inv) == "try-error"){elast.inv <- MASS::ginv(ownerDown * elast)}
-      marginsDownCand <- -as.vector(elast.inv %*% shareCandDown)
+      thisobj@up <- up
+      thisobj@down <- down
+      # shareCandDown  <- calcShares(down, preMerger=preMerger,revenue=FALSE)
+      # 
+      # 
+      # elast <-  -alpha*tcrossprod(shareCandDown)
+      # diag(elast) <- alpha*shareCandDown + diag(elast)
+      # elast.inv <- try(solve(ownerDown * elast),silent=TRUE)
+      # if(any(class(elast.inv) == "try-error")){elast.inv <- MASS::ginv(ownerDown * elast)}
+      # marginsDownCand <- -as.vector(elast.inv %*% shareCandDown)
+      # 
+      # 
+      # div <- tcrossprod(1/(1-shareCandDown),shareCandDown)*shareCandDown
+      # diag(div) <- -shareCandDown
+      # div <- as.vector(div)
+      # 
+      # #if(!isHorizontal){
+      #   marginsDownCand <-  marginsDownCand - elast.inv %*% ( (ownerVDown * elast) %*% (priceCandUp-mcUp) )
+      #  
+      # #}
+      # marginsUpCand <- as.vector(solve(ownerUpLambda * div) %*% (ownerDownLambda * div) %*% marginsDownCand) 
+      # 
+      
+      theseMargins <- calcMargins(thisobj,preMerger=preMerger, level=TRUE)
+      
+      upFOC <-  priceCandUp- mcUp - theseMargins$up
+      downFOC <- priceCandDown - priceCandUp - mcDown - theseMargins$down
       
       
-      
-      div <- tcrossprod(1/(1-shareCandDown),shareCandDown)
-      diag(div) <- -1
-      
-      
-      #if(length(v) > 0 && !preMerger){
-      #  marginsDownCand <-  marginsDownCand - elast.inv %*% ( (v$ownerPost.down * elast) %*% (priceCandUp-mcUp) )
-      #  #upFOC <- (ownerUp * div) %*% (priceCandUp-mcUp) - (v$ownerPostLambda.down * div) %*% marginsDownCand
-      #  marginsUpCand <- as.vector(solve(ownerUp * div) %*% (v$ownerPostLambda.down * div) %*% marginsDownCand) 
-      #}
-      #else{
-        
-        marginsUpCand <-  (1-bargparm)/bargparm * as.vector(MASS::ginv(ownerUp * div) %*% (ownerDown * div) %*% marginsDownCand)
-        #upFOC<- as.vector(bargparm *((ownerUp * div) %*% (priceCandUp-mcUp))  -  (1-bargparm) * ((ownerDown * div) %*% marginsDownCand))
-        
-        
-      #}
-      
-      upFOC <-  priceCandUp-mcUp - marginsUpCand
-      downFOC <- priceCandDown - priceCandUp - mcDown - marginsDownCand
-      
-      
-      thisFOC= c(downFOC,upFOC)
+      thisFOC= c(upFOC,downFOC)
       
       return(thisFOC)
     }
     
    
 
-      minResult <- BBsolve(priceStart,FOC,quiet=TRUE,control=object@control.equ,...)
+      minResult <- BBsolve(priceStart,FOC,quiet=TRUE,control=down@control.equ,...)
       
       if(minResult$convergence != 0){warning("'calcPrices' nonlinear solver may not have successfully converged. 'BBsolve' reports: '",minResult$message,"'")}
       minResult <- minResult$par
@@ -582,3 +590,126 @@ setMethod(
       return(list(up=minResultUp,down=minResultDown)) 
   }
 )
+
+
+#'@rdname Prices-Methods
+#'@export
+setMethod(
+  f= "calcPrices",
+  signature= "VertBarg2ndLogit",
+  definition=function(object,preMerger=TRUE,...){
+    
+    
+    up <- object@up
+    down <- object@down
+    
+    alpha <- down@slopes$alpha
+    meanval <- down@slopes$meanval
+    
+    
+    
+    
+    subsetDown <- down@subset
+  
+    
+    
+    priceStartUp <- up@priceStart
+    priceStartDown <- down@priceStart
+    priceStart <- c(priceStartUp[subsetDown])
+    
+    
+    nprods <- length(priceStartDown)
+    
+    
+    ownerDown <- ownerToMatrix(down, preMerger=preMerger)[subsetDown,subsetDown]
+    
+    priceOutside <- down@priceOutside
+    
+    if(preMerger){
+      
+      bargparm <- up@bargpowerPre[subsetDown]
+      down@ownerPre <- ownerDown
+      mcUp <- up@mcPre[subsetDown]
+      mcDown <- down@mcPre[subsetDown]
+      ownerDownLambda <- object@ownerDownLambdaPre[subsetDown,subsetDown]
+      ownerUpLambda <- object@ownerUpLambdaPre[subsetDown,subsetDown]
+      
+    }
+    
+    else{
+      
+  
+      down@ownerPost <- ownerDown
+      bargparm <- up@bargpowerPost[subsetDown]
+      mcUp <- up@mcPost[subsetDown]
+      mcDown <- down@mcPost[subsetDown]
+      ownerDownLambda <- object@ownerDownLambdaPost[subsetDown,subsetDown]
+      ownerUpLambda <- object@ownerUpLambdaPost[subsetDown,subsetDown]
+      
+      }
+    
+    
+    
+    
+    FOC <-function(priceCand){
+      
+      
+      
+      
+      priceCandUp= rep(NA, 1,nprods)[subsetDown] 
+      priceCandUp <- priceCand[1:length(priceCandUp)]
+      #priceCandDown <- priceCand[-(1:length(priceCandUp))]
+      
+      
+      down@slopes$meanval <- meanval  + alpha *(priceCandUp - priceOutside)
+      
+      shareCandDown  <- calcShares(down, preMerger=preMerger,revenue=FALSE)
+      marginsDownCand <- calcMargins(down, preMerger=preMerger,level=TRUE)
+      
+      
+      
+      div <- tcrossprod(1/(1-shareCandDown),shareCandDown)*shareCandDown
+      diag(div) <- -shareCandDown
+      div <- as.vector(div)
+      
+      #marginsUpCand <- as.vector(solve(ownerUpLambda * div) %*% ((ownerDownLambda * div) %*% marginsDownCand)) 
+      
+      
+      upFOC <-  (ownerUpLambda * div) %*%(priceCandUp - mcUp) - ((ownerDownLambda * div) %*% marginsDownCand)
+        
+      #downFOC <- priceCandDown - priceCandUp - mcDown - marginsDownCand
+      
+      
+      thisFOC= #c(downFOC,
+                 as.vector(upFOC)
+      
+      return(thisFOC)
+    }
+    
+    
+    
+    minResult <- BB::BBsolve(priceStart,FOC,quiet=TRUE,control=down@control.equ,...)
+    
+    if(minResult$convergence != 0){warning("'calcPrices' nonlinear solver may not have successfully converged. 'BBsolve' reports: '",minResult$message,"'")}
+    minResult <- minResult$par
+    
+    minResultUp <- rep(NA, length(priceStartUp))
+    minResultDown <- rep(NA, length(priceStartDown))
+    
+    
+    
+    minResultUp[subsetDown] <- minResult[1:length(priceStartUp[subsetDown])] 
+    #minResultDown[subsetDown] <- minResult[-(1:length(priceStartUp[subsetDown]))]
+    
+    down@slopes$meanval <- meanval  + alpha *(minResultUp - priceOutside)
+    
+  
+    marginsDown <- calcMargins(down, preMerger=preMerger,level=TRUE)
+    
+    minResultDown <- marginsDown  + minResultUp + mcDown 
+    
+    return(list(up=minResultUp,down=minResultDown)) 
+  }
+)
+
+

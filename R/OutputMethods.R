@@ -22,6 +22,7 @@
 #' calcShares,Logit-method
 #' calcShares,LogitNests-method
 #' calcShares,Auction2ndLogit-method
+#' calcShares,Auction2ndLogitNests-method
 #' calcShares,Cournot-method
 #' calcRevenues
 #' calcRevenues,ANY-method
@@ -52,10 +53,6 @@
 #' @param exAnte If \sQuote{exAnte} equals TRUE then the
 #' \emph{ex ante} expected result for each firm is produced, while FALSE produces the
 #' expected result conditional on each firm winning the auction. Default is FALSE.
-#' @param subset A vector of length k where each element equals TRUE if
-#' the product indexed by that element should be included in the
-#' post-merger simulation and FALSE if it should be excluded. Default is a
-#' length k vector of TRUE.
 #' @param ... Additional arguments to pass to \code{calcQuantities}.
 #'
 #' @include PSMethods.R
@@ -558,14 +555,42 @@ setMethod(
   signature= "VertBargBertLogit",
   definition=function(object,preMerger=TRUE,revenue=FALSE){
     
+    down <- object@down 
    
+    result <- calcShares(down, preMerger=preMerger,revenue=revenue)
+    return(result)
     
-    down <- object@down
+    }
+)
+
+
+
+#'@rdname Output-Methods
+#'@export
+setMethod(
+  f= "calcShares",
+  signature= "VertBarg2ndLogit",
+  definition=function(object,preMerger=TRUE,revenue=FALSE){
+  
+    
+    down <- object@down 
+    up <- object@up
+    
+    priceOutside <- down@priceOutside
+    
+    if(preMerger){ upPrice <- up@pricePre}
+    else{ upPrice <- up@pricePost}
+    
+   
+    meanval <- down@slopes$meanval
+    alpha <- down@slopes$alpha
+    
+    down@slopes$meanval <- meanval + alpha *(upPrice - priceOutside) 
     result <- calcShares(down, preMerger=preMerger,revenue=revenue)
     return(result)
     
     
-    }
+  }
 )
 
 #'@rdname Output-Methods
@@ -669,15 +694,12 @@ setMethod(
 setMethod(
   f= "calcShares",
   signature= "Auction2ndLogit",
-  definition=function(object,preMerger=TRUE,revenue=FALSE,subset){
+  definition=function(object,preMerger=TRUE,revenue=FALSE){
 
     nprods <- length(object@shares)
 
-    if(missing(subset)){
-      subset <- rep(TRUE,nprods)
-    }
-
-    if(!is.logical(subset) || length(subset) != nprods ){stop("'subset' must be a logical vector the same length as 'shares'")}
+    if(preMerger){ subset <- rep(TRUE,nprods) }
+    else{subset <- object@subset}
 
 
     idx <- object@normIndex
@@ -709,7 +731,9 @@ setMethod(
 
 
     shares <- exp(meanval)
+    shares[!subset] <- NA
     shares <- shares/(outVal + sum(shares,na.rm=TRUE))
+    
 
     if(revenue){
       res <- rep(NA,nprods)
@@ -723,6 +747,80 @@ setMethod(
 
 
 
+  }
+)
+
+
+
+#'@rdname Output-Methods
+#'@export
+setMethod(
+  f= "calcShares",
+  signature= "Auction2ndLogitNests",
+  definition=function(object,preMerger=TRUE,revenue=FALSE){
+    
+    nprods <- length(object@shares)
+    
+    if(preMerger){ subset <- rep(TRUE,nprods) }
+    else{subset <- object@subset}
+    
+    
+    idx <- object@normIndex
+    alpha    <- object@slopes$alpha
+    meanval  <- object@slopes$meanval
+    sigma    <- object@slopes$sigma
+    
+    nests <- object@nests
+    
+    
+    
+    if(is.na(idx)){
+      outVal <- 1
+      mcDeltaOut <- object@priceOutside
+    }
+    
+    else{
+      outVal <- 0
+      mcDeltaOut <- object@mcDelta[idx]
+    }
+    
+    
+    if( preMerger) {
+      prices <- object@pricePre
+      
+    }
+    else{
+      prices <- object@pricePost
+      meanval <- meanval + alpha * (object@mcDelta - mcDeltaOut)
+    }
+    
+    
+    
+    
+    sharesBetween <- sharesWithin <- ifelse(subset,exp(meanval/sigma[nests]),NA)
+    sharesBetween <-  as.vector(tapply(sharesBetween,nests,sum,na.rm=TRUE))
+    sharesWithin <- sharesWithin/sharesBetween[nests]
+    
+    
+    sharesBetween <- sharesBetween^sigma
+    sharesBetween <- sharesBetween/(exp(alpha*mcDeltaOut) + sum(sharesBetween,na.rm=TRUE))
+    sharesBetween <- sharesBetween[nests]
+    
+    shares <- sharesWithin*sharesBetween
+    
+    
+    if(revenue){
+      res <- rep(NA,nprods)
+      res[subset] <- prices[subset]*shares[subset]/sum(prices[subset]*shares[subset],mcDeltaOut*(1-sum(shares[subset])))
+      shares <- res
+    }
+    
+    names(shares) <- object@labels
+    
+    return(shares)
+    
+    
+    
   }
 )
 

@@ -59,9 +59,16 @@ setMethod(
     #names(priceDelta) <- object@labels
 
     if(market){
-      shares <- calcShares(object, ...)
-      shares <- shares/sum(shares,na.rm=TRUE)
-      priceDelta <- sum(priceDelta*shares,na.rm=TRUE)
+      
+      sharesPre <- calcShares(object, preMerger=TRUE,...)
+      sharesPre <- sharesPre/sum(sharesPre,na.rm=TRUE)
+      
+      
+      sharesPost <- calcShares(object, preMerger=FALSE,...)
+      sharesPost <- sharesPost/sum(sharesPost,na.rm=TRUE)
+      
+      
+      priceDelta <- sum(pricePost*sharesPost,na.rm=TRUE)/ sum(pricePre*sharesPre,na.rm=TRUE) - 1
     }
 
     return(priceDelta)
@@ -78,16 +85,65 @@ setMethod(
     
     up <- object@up
     down <- object@down
+
+    marginsPre <- calcMargins(object,preMerger=TRUE,level=TRUE)
+    marginsPost <- calcMargins(object,preMerger=FALSE,level=TRUE)
     
-    downDelta <- calcPriceDelta(down,levels = levels, market = market, ...)
-    upDelta   <-  calcPriceDelta(up,levels = levels, market = FALSE, ...)
+    sharesPre <- calcShares(object, preMerger=TRUE,revenue=FALSE)
+    sharesPost <- calcShares(object, preMerger=FALSE,revenue=FALSE)
     
-    if(market){
-      shares <- calcShares(down, ...)
-      shares <- shares/sum(shares,na.rm=TRUE)
-      upDelta <- sum(upDelta*shares,na.rm=TRUE)
+      upMCPre=up@mcPre
+      downMCPre=down@mcPre
+      upPricePre <- up@pricePre  
+   
+      upMCPost=up@mcPost
+      downMCPost=down@mcPost
+      upPricePost <-  up@pricePost
+    
+        if(!market){
+        mcDeltaUp <- upMCPost  - upMCPre
+        mcDeltaDown <- (downMCPost+upPricePost) - (downMCPre + upPricePre)
+    
+        ## assume 0 marginal cost changes if unkown
+        mcDeltaUp <- ifelse(is.na(mcDeltaUp),0,mcDeltaUp)
+        mcDeltaDown <- ifelse(is.na(mcDeltaDown),0,mcDeltaDown)
+    
+      upDelta <- marginsPost$up - marginsPre$up + mcDeltaUp
+      downDelta <- marginsPost$down - marginsPre$down + mcDeltaDown
+    
+      upPricePre <- up@pricePre
+      downPricePre <- down@pricePre
+    }
+      
+      
+    else{
+      
+      
+      mcDeltaUp <- upMCPost *sharesPost - upMCPre*sharesPre
+      mcDeltaDown <- (downMCPost+upPricePost)*sharesPost - (downMCPre + upPricePre)*sharesPre
+      
+      ## assume 0 marginal cost changes if unkown
+      mcDeltaUp <- ifelse(is.na(mcDeltaUp),0,mcDeltaUp)
+      mcDeltaDown <- ifelse(is.na(mcDeltaDown),0,mcDeltaDown)
+      
+      upDelta <- marginsPost$up*sharesPost - marginsPre$up*sharesPre + mcDeltaUp
+      downDelta <- marginsPost$down*sharesPost - marginsPre$down*sharesPre + mcDeltaDown
+      
+      upPricePre <- up@pricePre*sharesPre
+      downPricePre <- down@pricePre*sharesPre
+      
+      
+      upDelta <- sum(upDelta,na.rm=TRUE)
+      downDelta <- sum(downDelta,na.rm=TRUE)
+      
+      upPricePre <- sum(upPricePre,na.rm=TRUE)
+      downPricePre <- sum(downPricePre,na.rm=TRUE)
     }
    
+    if(!levels){
+      upDelta <- upDelta/upPricePre
+      downDelta <- downDelta/downPricePre
+    }
     priceDelta <- list(up = upDelta,
                        down= downDelta)
     
@@ -173,7 +229,7 @@ setMethod(
 setMethod(
   f= "calcPriceDelta",
   signature= "Auction2ndLogit",
-  definition=function(object,exAnte=FALSE,levels=TRUE){
+  definition=function(object,exAnte=FALSE,levels=TRUE, market=FALSE){
 
     subset <- object@subset
 
@@ -183,9 +239,7 @@ setMethod(
       sharesPost <- calcShares(object, preMerger=FALSE)
       mcDelta <- mcDelta*sharesPost
     }
-    else{sharesPost <- rep(1,length(subset))}
-
-
+   
     result <- calcMargins(object, preMerger=FALSE,exAnte=exAnte) + mcDelta -
       calcMargins(object, preMerger=TRUE,exAnte=exAnte)
 

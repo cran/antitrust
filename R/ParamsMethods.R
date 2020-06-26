@@ -19,6 +19,7 @@
 #' calcSlopes,PCAIDS-method
 #' calcSlopes,PCAIDSNests-method
 #' calcSlopes,Auction2ndLogit-method
+#' calcSlopes,Auction2ndLogitNests-method
 #' calcSlopes,Auction2ndLogitALM-method
 #' calcSlopes,Cournot-method
 #' calcSlopes,Stackelberg-method
@@ -531,8 +532,8 @@ setMethod(
     idx          <-  object@normIndex
     mktElast     <-  object@mktElast
     shareInside  <-  object@shareInside
-    diversion    <-  object@diversion 
-
+    diversion    <-  object@diversion
+   
     
     if(is.na(idx)){
       idxShare <- 1 - shareInside
@@ -543,11 +544,13 @@ setMethod(
       idxPrice <- prices[idx]
     }
 
-    ## Choose starting paramter values
+    ## Choose starting parameter values
     notMissing <- which(!is.na(margins))[1]
 
     parmStart <- -1/(margins[notMissing]*prices[notMissing]*(1 - shares[notMissing]))
-    parmStart <- c(parmStart, log(shares) - log(idxShare) - parmStart * (prices - idxPrice) )
+    mvalStart <-  log(shares) - log(idxShare) - parmStart * (prices - idxPrice)
+    if(!is.na(idx)) mvalStart <-  mvalStart[-idx]
+    parmStart <- c(parmStart, mvalStart)
 
     ## Uncover price coefficient and mean valuation from margins and revenue shares
 
@@ -567,12 +570,17 @@ setMethod(
     minD <- function(theta){
       
       alpha <- theta[1]
-      meanval <- theta[-1]
+      
+      if(!is.na(idx)){
+        meanval <- rep(0,nprods)
+        meanval[-idx] <- theta[-1]
+      }
+      else{meanval <- theta[-1]}
 
       probs <- shares
       
       predshares <- exp(meanval + alpha*prices)
-      predshares <- predshares/(is.na(idx) + sum(predshares) )
+      predshares <- predshares/(is.na(idx)*exp(alpha*idxPrice) + sum(predshares) )
 
       preddiversion <-tcrossprod( 1/(1-predshares),predshares)
       diag(preddiversion) <- -1
@@ -595,7 +603,7 @@ setMethod(
       m1 <- margins - marginsCand
       m2 <- predshares - probs
       m3 <- drop(diversion - preddiversion)
-      measure <- sum((c(m1, m2, m3)*100)^2,na.rm=TRUE)
+      measure <- sum((c(m1, m2, m3))^2,na.rm=TRUE)
 
       return(measure)
     }
@@ -635,8 +643,12 @@ setMethod(
     minAlpha           <- minTheta$par[1]
     names(minAlpha)    <- "Alpha"
     
-    meanval <-  minTheta$par[-1]
-  
+    if(is.na(idx)) meanval <-  minTheta$par[-1]
+    else{
+      meanval <- rep(0,nprods)
+      meanval[-idx] <- minTheta$par[-1]
+    }
+    
     names(meanval)   <- object@labels
 
 
@@ -1198,6 +1210,166 @@ setMethod(
   }
 )
 
+
+
+#'@rdname Params-Methods
+#'@export
+setMethod(
+  f= "calcSlopes",
+  signature= "Auction2ndLogitNests",
+  definition=function(object){
+    
+    ## Uncover Demand Coefficents
+    
+    
+    ownerPre     <-  object@ownerPre
+    shares       <-  object@shares
+    nprods      <-   length(shares)
+    
+    diversion <- object@diversion
+    margins      <-  object@margins
+    
+    prices <- object@prices
+    
+    idx          <-  object@normIndex
+    
+    parmsStart   <- object@parmsStart
+    nests        <- object@nests
+    nestCnt      <- tapply(shares,nests,length)
+    constraint   <- object@constraint
+    
+    nestMat <- tcrossprod(model.matrix(~-1+nests)) 
+    
+    
+    dupCnt <- rowSums(ownerPre*nestMat) #only include the values in a given nest once
+    
+    isSingletonNest <- nestCnt==1
+    
+    
+    sharesBetween <- sharesNests <- as.vector(tapply(shares,nests,sum)[nests])
+    sharesNests <- shares / sharesNests
+    
+    ownerShares <- drop(ownerPre %*% shares)
+    
+    if(any(isSingletonNest)){
+      warning("Some nests contain only one product; their nesting parameters are not identified.
+              Normalizing these parameters to 1.")
+      
+    }
+    
+    
+    ## create index variables, contingent on whether an outside good is defined
+    isnotIdx <- rep(TRUE,nprods)
+    
+    if(is.na(idx)){
+      idxShare <- 1 - object@shareInside
+      idxShareIn <- 1
+      idxPrice   <- object@priceOutside
+      idxSigma   <- 1
+      
+      
+      
+    }
+    
+    else{
+      
+      
+      idxShare   <- shares[idx]
+      idxShareIn <- sharesNests[idx]
+      idxPrice   <- prices[idx]
+      
+      isnotIdx[idx] <- FALSE
+      
+      
+    }
+    
+    
+    if(!constraint){
+      parmsStart   <- parmsStart[c(TRUE,!isSingletonNest)] #always retain first element; this is
+      # the initial value for price coefficient
+    }
+    
+    
+    
+    
+    ## Minimize the distance between observed and predicted margins,
+    ## diversions, shares
+    minD <- function(theta){
+      
+      alpha <- theta[1]
+      theta <- theta[-1]
+      sigma <- as.numeric(isSingletonNest)
+      sigma[!isSingletonNest] <- theta
+      
+      
+      ownerValue <-   1 - (1 - ((ownerPre*nestMat)%*%sharesNests))^sigma[nests]
+      ownerValue <-  drop(1 - ownerPre %*%(ownerValue * sharesBetween/dupCnt))
+      
+      marginsCand <-  log(ownerValue)/(alpha*ownerShares) 
+   
+      ## The following returns the transpose of the elasticity matrix
+      elasticity <- diag((1/sigma-1)*alpha)
+      elasticity <- elasticity[nests,nests]
+      elasticity <- elasticity * matrix( shares*prices,ncol=nprods,nrow=nprods)
+      elasticity <- -1*(elasticity + alpha * matrix(shares*prices,ncol=nprods,nrow=nprods))
+      diag(elasticity) <- diag(elasticity) + (1/sigma[nests])*alpha*prices
+      
+      preddiversion <- -elasticity/diag(elasticity)*tcrossprod(1/shares,shares)
+      diag(preddiversion) <- -1
+      
+      
+      m1 <- marginsCand/margins-1
+      m3 <- drop(diversion - preddiversion)
+      measure <- sum((c(m1,  m3)*100)^2,na.rm=TRUE)
+      
+      
+      return(measure)
+    }
+    
+    ##  Constrained optimizer to look for solutions where alpha<0,  1 > sigma > 0.
+    ##  sigma > 1 or sigma < 0 imply complements
+    lowerB <- c(-Inf,0)
+    upperB <- c(0,1)
+    
+    minTheta <- optim(parmsStart,minD,method="L-BFGS-B",
+                      lower= lowerB,upper=upperB,
+                      control=object@control.slopes)
+    
+    
+    if(minTheta$convergence != 0){
+      warning("'calcSlopes' nonlinear solver did not successfully converge. Reason: '",minTheta$message,"'")
+    }
+    
+    
+    
+    minAlpha           <- minTheta$par[1]
+    names(minAlpha)    <- "Alpha"
+    
+    meanval <- log(shares) - log(idxShare)
+    
+    minSigma <-  as.numeric(isSingletonNest)
+    
+    minSigma[!isSingletonNest] <- minTheta$par[-1]
+    
+    
+    names(minSigma) <- levels(nests)
+    
+    if(is.na(idx)) minSigmaOut <- 0
+    else {minSigmaOut        <- minSigma[idx]}
+    
+  
+    meanvalDown=minSigma*(log(shares)-log(idxShare))
+    
+    names(meanval)   <- object@labels
+    
+    object@slopes    <- list(alpha=minAlpha,sigma=minSigma,meanval=meanval)
+    
+    return(object)
+  }
+)
+
+
+
 #'@rdname Params-Methods
 #'@export
 setMethod(
@@ -1533,22 +1705,33 @@ setMethod(
 
       m1 <- 1 - (log((1-firmShares))/( alpha * firmShares))/margins
       m2 <-  mktElast / (alpha * avgPrice) - sOut
+
       measure <- sum(c(m1 , m2)^2,na.rm=TRUE)
 
       return(measure)
     }
 
     ## Constrain optimizer to look  alpha <0,  0 < sOut < 1
-    lowerB <- c(-Inf,0)
+    lowerB <- c(-Inf,1e-9)
     upperB <- c(-1e-10,.9999999999)
 
     if(!is.na(mktElast)){upperB[1] <- mktElast/avgPrice}
 
-    minTheta <- optim(object@parmsStart,minD,
+    # minTheta <- optim(object@parmsStart,minD,
+    #                   method="L-BFGS-B",
+    #                   lower= lowerB,upper=upperB,
+    #                   control=object@control.slopes)
+    # 
+    minTheta <- BBoptim(object@parmsStart,minD,
                       method="L-BFGS-B",
-                      lower= lowerB,upper=upperB,
-                      control=object@control.slopes)$par
+                      lower= lowerB,upper=upperB,quiet=TRUE,
+                      control=object@control.slopes)
 
+    if(minTheta$convergence != 0){
+      warning("'calcSlopes' nonlinear solver may not have successfully converged. Reason: '",minTheta$message,"'")
+    }
+      minTheta <- minTheta$par
+    
     if(isTRUE(all.equal(minTheta[2],lowerB[2],check.names=FALSE))){warning("Estimated outside share is close to 0. Normalizing relative to largest good.")
       idx <- which.max(shares)
       meanval <- log(shares) - log(shares[idx])
@@ -1717,7 +1900,7 @@ setMethod(
     notMissing <- which(!is.na(margins))[1]
     
     parmStart <- (shares[notMissing] - 1/margins[notMissing])/(shares[notMissing] - 1 ) 
-    parmStart <- c(parmStart, log(shares) - log(idxShare) + (parmStart - 1) * (log(prices) - log(idxPrice)))
+    parmStart <- c(parmStart, exp(log(shares) - log(idxShare) - (parmStart - 1) * (log(prices) - log(idxPrice))))
     
 
     
@@ -1734,7 +1917,7 @@ setMethod(
       gamma <- theta[1]
       meanval <- theta[-1]
 
-      predshares <- meanval * prices^(1-gamma)
+      predshares <- meanval * (prices/idxPrice)^(1-gamma)
       predshares <- predshares/(is.na(idx) + sum(predshares) )
          
       preddiversion <-tcrossprod( 1/(1-predshares),predshares)
@@ -1781,13 +1964,11 @@ setMethod(
 
     meanval <-  minTheta$par[-1]
 
+    if(!is.na(idx)) meanval <- meanval/meanval[idx]
+    
     names(meanval)   <- object@labels
 
     
-    meanval <- exp(meanval)
-
-    names(meanval)   <- object@labels
-
     object@slopes    <- list(alpha=alpha,gamma=minGamma,meanval=meanval)
     object@priceOutside <- idxPrice
     object@mktSize <- insideSize*(1+alpha)
@@ -2057,28 +2238,51 @@ setMethod(
   f= "calcSlopes",
   signature= "VertBargBertLogit",
   definition=function(object){
+   
     
-    constrain <- match.arg(constrain)
+    
+    constrain <- object@constrain
+    
+    is2nd <- any(grepl("2nd",class(object)))
     
     up <- object@up
     down <- object@down
     constrain <- object@constrain
     
-    ownerPre.up <- up@ownerPre
-    ownerPre.down <- down@ownerPre
-    pricesUp <- up@prices
-    marginsUp <- up@margins
+
+    owner.up <- up@ownerPre
+    owner.down <- down@ownerPre
     
-    id <- data.frame(up.firm=ownerToVec(up),
-                     down.firm=ownerToVec(down)
+    
+  
+    
+    pricesUp    <- up@prices
+    marginsUp   <- up@margins
+    
+    marginsDown <- down@margins
+    idx         <- down@normIndex
+    sharesDown  <- down@shares
+    
+    
+    pricesDown <- down@prices
+    down@pricePre <- pricesDown
+    
+    if(is.na(idx)){
+      idxShare <- 1 - down@shareInside
+      idxPrice <- down@priceOutside
+    }
+    else{
+      idxShare <- sharesDown[idx]
+      idxPrice <- pricesDown[idx]
+    }
+    
+    
+    id <- data.frame(up.firm=owner.up,
+                     down.firm=owner.down
                      )
     
     
    
-    
-    pricesDown <- down@prices
-    down@pricePre <- pricesDown
-    marginsDown <- calcMargins(down, preMerger= TRUE)
     
     nprods <- nrow(id)
     
@@ -2092,36 +2296,145 @@ setMethod(
       id <- with(id,down.firm)
     }
     else{ id <- rep(1,nprods)}
-    
-    
-
-    marginsDown <- marginsDown*pricesDown
+   
     marginsUp <- marginsUp*pricesUp
+    marginsDown <- marginsDown*pricesDown
+     
+    #set starting value for bargaining parameter equal to 0.5
+    bStart <- rep(0.5,nlevels(factor(id)))
+    # set starting value for alpha equal to single product 
+    # unintegrated firm
+    firstAvail <- which(!is.na(marginsDown))[1]
+    alphaStart <- -1/(marginsDown[firstAvail]*(1 - sharesDown[firstAvail]))
     
+    parmStart <- c(alphaStart,bStart)
     
-    
-    div <- diversion(down, preMerger=TRUE) 
    
     
-    regressor <- solve(ownerPre.up * div) %*% (ownerPre.down * div) %*% marginsDown
-    regressor <- as.vector(regressor)
-    
-    normbarg <- coef(lm(marginsUp~0+id:regressor))
-    names(normbarg) <- gsub(":.*","",names(normbarg))
-    
-    bargparm <- 1/(1+normbarg) 
-    
-    bargparm <- bargparm[id]
-    names(bargparm) <- down@labels
     
     
+   
+    div <- tcrossprod(1/(1-sharesDown),sharesDown)*sharesDown
+    diag(div) <- -sharesDown
+    div <- as.vector(div)
     
-    up@bargpower <- bargparm
-    object@up <- up
     
-    down@pricePre <- numeric()
+    vertFirms <- intersect(owner.up,owner.down)
+    
+    ownerDownMat <-  ownerToMatrix(down, preMerger=TRUE)
+    ownerBargUpVert<- ownerToMatrix(up, preMerger=TRUE)
+    
+    ownerDownMatVertical <- matrix(0,nrow=nprods,ncol=nprods)
+    
+    minD <- function(theta){
+      
+      alpha <- theta[1]
+      b <- theta[-1]
+      b <- b[as.numeric(id)]
+      
+  
+      b[owner.up == owner.down] <- 1 
+      
+      for( v in vertFirms){
+        
+        vertrows <- owner.up != v  & owner.down == v
+        ownerBargUpVert[vertrows, owner.up == v] <- -(1-b[vertrows])/b[vertrows]
+      }
+      
+      
+      ownerBargDownVert  <-  ownerDownMat  * (1-b)/b
+      
+      for( v in vertFirms){
+        
+        vertrows <-  owner.up == v  & owner.down != v
+        
+        ## only change downstream matrix when firms are playing Bertrand
+        if(!is2nd){ownerDownMatVertical[owner.down == v, vertrows] <- 1}
+        #ownerDownMatVertical[owner.down == v, !vertrows] <- 0
+        
+        
+        ownerBargDownVert [vertrows, owner.down == v] <- -1
+        
+      }
+      
+      #ownerDownMatVertical[!owner.down %in% vertFirms, ] <- 0
+      
+      down@ownerPre <- ownerDownMat
+      
+      if(is2nd) mval <- log(sharesDown) - log(idxShare) - alpha*(pricesUp - idxPrice)
+      else{mval <- log(sharesDown) - log(idxShare) - alpha*(pricesDown - idxPrice)}
+      
+      down@slopes <- list(alpha = alpha,
+                          meanval = mval
+                          )
+      
+      marginsCandDown <- calcMargins(down, preMerger= TRUE,level=TRUE)
+       
+      shareCandDown   <- calcShares(down,preMerger=TRUE,revenue=FALSE)
+
+        if(!is2nd){
+        elast <-  -alpha*tcrossprod(sharesDown)
+        diag(elast) <- alpha*sharesDown + diag(elast)
+        elast.inv <- try(solve(ownerDownMat * elast),silent=TRUE)
+        if(any(class(elast.inv) == "try-error")){elast.inv <- MASS::ginv(ownerDownMat * elast)}
+        
+        marginsCandDown <- marginsCandDown - elast.inv %*% ( (ownerDownMatVertical * elast) %*% (marginsUp) )
+      }
+      
+      depVar <- as.vector((ownerBargUpVert  * div) %*% marginsUp)
+      regressor <- as.vector( ( ownerBargDownVert  * div) %*% marginsCandDown)
+      
+      err <- c(depVar - regressor, marginsDown - marginsCandDown 
+               , (sharesDown - shareCandDown)
+               )
+      return(sum((err)^2,na.rm = TRUE))
+    }
+    
+    #optmethod <- "L-BFGS-B"
+    #if(length(bStart) ==1) optmethod <- "Brent"
+    lowerB <- rep(.01,length(parmStart))
+    lowerB[1] <- -1e9
+    upperB <- rep(.99, length(parmStart))
+    upperB[1] <- -1e-9
+    
+    #thetaOpt <- optim(parmStart,minD,method=optmethod,lower = lowerB,upper = upperB)
+    thetaOpt <- BBoptim(parmStart,minD,lower = lowerB,upper = upperB,control = object@control.slopes,quiet=TRUE)
+    
+    if(thetaOpt$convergence !=0){
+      warning("Calibration routine may not have converged. Optimizer Reports:\n\t",thetaOpt$message)}
+    
+    ## Pre-merger bargaining parameter
+    alphaOpt <- thetaOpt$par[1]
+    
+    if(!is2nd) {mvalOpt <- log(sharesDown) - log(idxShare) - alphaOpt*(pricesDown - idxPrice)}
+    else{mvalOpt <- log(sharesDown) - log(idxShare)- alphaOpt*(pricesUp - idxPrice)}
+    
+    bOpt     <- thetaOpt$par[-1]
+    bargparmPre <- bargparmPost <-  bOpt[as.numeric(id)]
+    bargparmPre[owner.up  == owner.down ] <- 1 
+    names(bargparmPre) <- down@labels
+    
+    ## Post-merger bargaining parameter
+    
+    #owner.up <- up@ownerPost
+    #owner.down <- down@ownerPost
+    bargparmPost[owner.up  == owner.down ] <- 1 
+    names(bargparmPost) <- down@labels
+      
+      
+    down@slopes <- list(alpha=alphaOpt,meanval=mvalOpt)  
+    down@mktSize <- down@insideSize/down@shareInside
     object@down <- down
     
+    up@bargpowerPre <- bargparmPre
+    up@bargpowerPost <- bargparmPost
+    object@up <- up
+  
+    
+    
+    
+    object <- ownerToMatrix(object, preMerger=TRUE) #create ownership matrices
+    object <- ownerToMatrix(object, preMerger=FALSE) #create ownership matrices
     
     return(object)
     
@@ -2176,7 +2489,7 @@ setMethod(
     mcPre <- calcMC(object, preMerger=TRUE)
     result$mcUpPre <- round(mcPre$up,digits)
     result$mcDownPre <- round(mcPre$down,digits)
-    result$bargpower <- round(up@bargpower,digits)
+    result$bargpower <- round(up@bargpowerPre,digits)
     
     return(result)
     

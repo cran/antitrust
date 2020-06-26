@@ -3,20 +3,60 @@
 \name{Auction2ndLogit-Functions}
 \alias{Auction2ndLogit-Functions}
 \alias{auction2nd.logit}
+\alias{auction2nd.logit.nests}
 \alias{auction2nd.logit.alm}
-\title{2nd Score Procurement Auction Model}
+\title{2nd Score Procurement Auction Model with (Nested) Logit Demand}
 \usage{
-auction2nd.logit(prices, shares, margins, ownerPre, ownerPost,
-  normIndex = ifelse(isTRUE(all.equal(sum(shares), 1, check.names =
-  FALSE)), 1, NA), mcDelta = rep(0, length(prices)), subset = rep(TRUE,
-  length(prices)), insideSize = NA_real_, mcDeltaOutside = 0,
-  control.slopes, labels = paste("Prod", 1:length(prices), sep = ""))
+auction2nd.logit(
+  prices,
+  shares,
+  margins,
+  ownerPre,
+  ownerPost,
+  normIndex = ifelse(isTRUE(all.equal(sum(shares), 1, check.names = FALSE)), 1, NA),
+  mcDelta = rep(0, length(prices)),
+  subset = rep(TRUE, length(prices)),
+  insideSize = NA_real_,
+  mcDeltaOutside = 0,
+  control.slopes,
+  labels = paste("Prod", 1:length(prices), sep = "")
+)
 
-auction2nd.logit.alm(prices, shares, margins, ownerPre, ownerPost,
-  mktElast = NA_real_, insideSize = NA_real_, mcDelta = rep(0,
-  length(prices)), subset = rep(TRUE, length(prices)),
-  mcDeltaOutside = 0, parmsStart, control.slopes, control.equ,
-  labels = paste("Prod", 1:length(prices), sep = ""))
+auction2nd.logit.nests(
+  prices,
+  shares,
+  margins,
+  nests,
+  diversions,
+  ownerPre,
+  ownerPost,
+  normIndex = ifelse(isTRUE(all.equal(sum(shares), 1, check.names = FALSE)), 1, NA),
+  mcDelta = rep(0, length(prices)),
+  subset = rep(TRUE, length(prices)),
+  insideSize = NA_real_,
+  mcDeltaOutside = 0,
+  parmsStart,
+  constraint = TRUE,
+  control.slopes,
+  labels = paste("Prod", 1:length(prices), sep = "")
+)
+
+auction2nd.logit.alm(
+  prices,
+  shares,
+  margins,
+  ownerPre,
+  ownerPost,
+  mktElast = NA_real_,
+  insideSize = NA_real_,
+  mcDelta = rep(0, length(prices)),
+  subset = rep(TRUE, length(prices)),
+  mcDeltaOutside = 0,
+  parmsStart,
+  control.slopes,
+  control.equ,
+  labels = paste("Prod", 1:length(prices), sep = "")
+)
 }
 \arguments{
 \item{prices}{A length k vector of product prices.}
@@ -62,22 +102,37 @@ to the calibration routine optimizer (typically the \code{calcSlopes} method).}
 \item{labels}{A k-length vector of labels. Default is "Prod#", where
 \sQuote{#} is a number between 1 and the length of \sQuote{prices}.}
 
-\item{mktElast}{a negative value indicating market elasticity. Default is NA.}
+\item{nests}{A length k factor of product nests.}
 
-\item{parmsStart}{A length 2 vector of starting values used to solve for
+\item{diversions}{A k x k matrix of diversion ratios with diagonal
+elements equal to -1. Default is missing, in which case diversion
+according to share is assumed.}
+
+\item{parmsStart}{For \code{auction2nd.logit.alm}, a length 2 vector of starting values used to solve for
 price coefficient and the share of the outside good. The first element should
 always be the price coefficient and the second should be
-the outside good.}
+the outside good. For \code{auction2nd.logit.nests}, a length n+1 vector of starting values used to solve for
+price coefficient and the nesting parameters. The first element should
+always be the price coefficient and the remaining elements should be
+the nesting parameters.}
+
+\item{constraint}{if TRUE, then the nesting parameters for all
+non-singleton nests are assumed equal. If FALSE, then each
+non-singleton nest is permitted to have its own value. Default is
+TRUE.}
+
+\item{mktElast}{a negative value indicating market elasticity. Default is NA.}
 
 \item{control.equ}{A list of  \code{\link[BB]{BBsolve}} control parameters passed
 to the non-linear equation solver (typically the \code{calcPrices} method).}
 }
 \value{
 \code{auction2nd.logit} returns an instance of \code{\linkS4class{Auction2ndLogit}},
-a child class of \code{\linkS4class{Logit}}.
+a child class of \code{\linkS4class{Logit}}. \code{auction2nd.logit.nests} returns an instance of \code{\linkS4class{Auction2ndLogitNests}}.
+\code{auction2nd.logit} returns an instance of \code{\linkS4class{Auction2ndLogitALM}}.
 }
 \description{
-Calibrates consumer demand using Logit and then
+Calibrates consumer demand using (Nested) Logit and then
 simulates the price effect of a merger between two firms
 under the assumption that all firms in the market are playing a
 differentiated products 2nd score auction game.
@@ -91,6 +146,11 @@ product margins from at least one firm, \code{auction2nd.logit} is able to
 recover the price coefficient and product mean valuations in a
 Logit demand model. \code{auction2nd.logit} then uses these
 calibrated parameters to simulate a merger between two firms, under the assumption that firms are particpating in a 2nd score procurement auction.
+
+
+\code{auction2nd.logit.nests} is identical to \code{auction2nd.logit} except that it assumes
+that products can be grouped into nests. Additional margin information is needed to 
+identify th nesting parameters. 
 
 \code{auction2nd.logit.alm} is identical to \code{auction2nd.logit} except that it assumes
 that an outside product exists and uses additional margin
@@ -142,7 +202,7 @@ Miller, Nathan (2014). \dQuote{Modeling the effects of mergers in procurement}
 \emph{International Journal of Industrial Organization} , \bold{37}, pp. 201-208.
 }
 \seealso{
-\code{\link{logit}}
+\code{\link{logit}},\code{\link{logit.nests}} for simulating mergers under a Nash-Bertrand pricing game with Logit demand
 }
 \author{
 Charles Taragin \email{ctaragin@ftc.gov}

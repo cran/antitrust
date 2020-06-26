@@ -10,25 +10,26 @@
 \alias{calcMargins,VertBargBertLogit-method}
 \alias{calcMargins,LogitCap-method}
 \alias{calcMargins,Auction2ndLogit-method}
+\alias{calcMargins,Auction2ndLogitNests-method}
 \alias{calcMargins,Cournot-method}
 \alias{calcMargins,Auction2ndCap-method}
 \title{Methods for Calculating Diagnostics}
 \usage{
-\S4method{calcMargins}{Bertrand}(object, preMerger = TRUE)
+\S4method{calcMargins}{Bertrand}(object, preMerger = TRUE, level = FALSE)
 
-\S4method{calcMargins}{VertBargBertLogit}(object, preMerger = TRUE)
+\S4method{calcMargins}{VertBargBertLogit}(object, preMerger = TRUE, level = FALSE)
 
-\S4method{calcMargins}{Auction2ndCap}(object, preMerger = TRUE,
-  exAnte = TRUE)
+\S4method{calcMargins}{Auction2ndCap}(object, preMerger = TRUE, exAnte = TRUE, level = FALSE)
 
-\S4method{calcMargins}{Cournot}(object, preMerger = TRUE)
+\S4method{calcMargins}{Cournot}(object, preMerger = TRUE, level = FALSE)
 
-\S4method{calcMargins}{AIDS}(object, preMerger = TRUE)
+\S4method{calcMargins}{AIDS}(object, preMerger = TRUE, level = FALSE)
 
-\S4method{calcMargins}{LogitCap}(object, preMerger = TRUE)
+\S4method{calcMargins}{LogitCap}(object, preMerger = TRUE, level = FALSE)
 
-\S4method{calcMargins}{Auction2ndLogit}(object, preMerger = TRUE,
-  exAnte = FALSE)
+\S4method{calcMargins}{Auction2ndLogit}(object, preMerger = TRUE, exAnte = FALSE, level = TRUE)
+
+\S4method{calcMargins}{Auction2ndLogitNests}(object, preMerger = TRUE, exAnte = FALSE, level = FALSE)
 }
 \arguments{
 \item{object}{An instance of one of the classes listed above.}
@@ -36,13 +37,16 @@
 \item{preMerger}{If TRUE, returns pre-merger outcome. If
 FALSE, returns post-merger outcome.  Default is TRUE.}
 
+\item{level}{IF TRUE, return margins in dollars. If FALSE, returns 
+margins in proportions. Default for most classes is FALSE.}
+
 \item{exAnte}{If \sQuote{exAnte} equals TRUE then the
 \emph{ex ante} expected result for each firm is produced, while FALSE produces the
 expected result conditional on each firm winning the auction. Default is FALSE.}
 }
 \description{
 Computes equilibrium product margins assuming that firms are playing a
-Nash-Bertrand or Cournot game. For "LogitCap", assumes firms are
+Nash-Bertrand, Cournot, or 2nd Score Auction game. For "LogitCap", assumes firms are
 playing a Nash-Bertrand or Cournot game with capacity constraints.
 }
 \keyword{methods}

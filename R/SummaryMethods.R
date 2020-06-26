@@ -29,7 +29,7 @@
 #' @param ... Allows other objects to be passed to a \code{CV} method.
 #'
 #' @keywords methods
-#' @include AntitrustMethods.R
+#' @include OwnershipMethods.R
 NULL
 
 #'@rdname summary-methods
@@ -45,7 +45,7 @@ setMethod(
     pricePre   <-  object@pricePre
     pricePost  <-  object@pricePost
 
-    if(grepl("aids",class(object),ignore.case=TRUE)){
+    if(any(grepl("aids",class(object),ignore.case=TRUE))){
 
       priceDelta <-  object@priceDelta
     }
@@ -73,7 +73,7 @@ setMethod(
 
       if(insideOnly){
         outPre <- outPre/sum(outPre)* 100
-        outPost <- outPost/sum(outPost)* 100
+        outPost <- outPost/sum(outPost,na.rm=TRUE)* 100
       }
 
       sumlabels=paste("shares",c("Pre","Post"),sep="")
@@ -81,7 +81,7 @@ setMethod(
 
     mcDelta <- object@mcDelta
     
-    if(!grepl("auction2nd",class(object),ignore.case=TRUE)){
+    if(any(!grepl("auction2nd",class(object),ignore.case=TRUE))){
       
       mcDelta <- mcDelta * 100
     }
@@ -109,8 +109,10 @@ setMethod(
 
     if(market){
 
-      thiscmcr <- thiscv <- NA
-      try(thiscmcr <- cmcr(object), silent=TRUE)
+      thiscmcr <- thiscv <- NA_real_
+
+      try(thiscmcr <- cmcr(object,levels=levels), silent=TRUE)
+
       try(thiscv <- CV(object),silent = TRUE)
 
       thispsdelta  <- NA_real_
@@ -122,9 +124,9 @@ setMethod(
       results <- with(results,
                       data.frame(
                         'HHI Change' = as.integer(HHI(outputPre/sum(outputPre),owner=object@ownerPost) - HHI(outputPre/sum(outputPre),owner=object@ownerPre)),
-                        'Industry Price Change (%)' = sum(priceDelta * outputPost/sum(outputPost),na.rm=TRUE),
-                        'Merging Party Price Change (%)'= sum(priceDelta[isparty] * outputPost[isparty], na.rm=TRUE) / sum(outputPost[isparty]),
-                        'Compensating Marginal Cost Reduction (%)' = sum(thiscmcr * outputPost[isparty]) / sum(outputPost[isparty]),
+                        'Industry Price Change (%)' = sum(priceDelta * outputPost/sum(outputPost, na.rm = TRUE),na.rm=TRUE),
+                        'Merging Party Price Change (%)'= sum(priceDelta[isparty] * outputPost[isparty], na.rm=TRUE) / sum(outputPost[isparty], na.rm=TRUE),
+                        'Compensating Marginal Cost Reduction (%)' = sum(thiscmcr * outputPost[isparty]) / sum(outputPost[isparty], na.rm=TRUE),
                         'Consumer Harm ($)' = thiscv,
                         'Producer Benefit ($)' = thispsdelta,
                         'Difference ($)'= thiscv - thispsdelta,
@@ -199,7 +201,6 @@ setMethod(
   f= "summary",
   signature= "VertBargBertLogit",
   definition=function(object,revenue=TRUE,
-                      #shares=TRUE,
                       levels=FALSE,parameters=FALSE,
                       market=FALSE,insideOnly = TRUE,
                       digits=2,...){
@@ -214,7 +215,7 @@ setMethod(
     priceDownPre   <-  down@pricePre
     priceDownPost  <-  down@pricePost
     
-     priceDelta <- calcPriceDelta(object,levels=levels)
+    priceDelta <- calcPriceDelta(object,levels=levels,market=market)
     
     if(!levels) priceDelta <- lapply(priceDelta, function(x){x*100})
     
@@ -231,14 +232,15 @@ setMethod(
     #}
     
     #else{
-    #  if(!shares){warning("'shares' equals FALSE but 'calcQuantities' not defined. Reporting shares instead of quantities")}
+    #  if(!shares){warning("'shares' equals FALSE but 'calcQuantities' not defined.
+    #Reporting shares instead of quantities")}
       
       outPre  <-  calcShares(object,preMerger=TRUE,revenue=revenue) * 100
       outPost <-  calcShares(object,preMerger=FALSE,revenue=revenue) * 100
       
       if(insideOnly){
         outPre <- outPre/sum(outPre)* 100
-        outPost <- outPost/sum(outPost)* 100
+        outPost <- outPost/sum(outPost,na.rm=TRUE)* 100
       }
       
       sumlabels=paste("shares",c("Pre","Post"),sep="")
@@ -251,14 +253,28 @@ setMethod(
     else{outDelta <- (outPost/outPre - 1) * 100}
     
     
-    isPartyDown <- rowSums( abs(down@ownerPost - down@ownerPre))>0
-    isPartyUp <- rowSums( abs(up@ownerPost - up@ownerPre))>0
-    isParty <- factor(isPartyDown | isPartyUp,levels=c(FALSE,TRUE),labels=c(" ","*"))
+    isPartyHorzDown <- down@ownerPost %in% down@ownerPre &
+                       down@ownerPost != down@ownerPre
+    if(any(isPartyHorzDown)){
+    isPartyHorzDown <- down@ownerPost==down@ownerPost[isPartyHorzDown]
+}
+isPartyHorzUp <- up@ownerPost %in% up@ownerPre &
+                 up@ownerPost !=   up@ownerPre
+if(any(isPartyHorzUp)){
+  isPartyHorzUp <- up@ownerPost==up@ownerPost[isPartyHorzUp]
+}
+    isPartyVert <- down@ownerPost == up@ownerPost &
+                       down@ownerPre != up@ownerPre
+  
+    isParty <- factor(isPartyHorzDown | isPartyHorzUp |isPartyVert,levels=c(FALSE,TRUE),labels=c(" ","*"))
     
-    results <- data.frame(priceUpPre=priceUpPre,priceUpPost=priceUpPost,
+    results <- data.frame(priceUpPre=priceUpPre,
+                          priceUpPost=priceUpPost,
                           priceUpDelta=priceDelta$up,
-                          priceDownPre=priceDownPre,priceDownPost=priceDownPost,
-                          priceDownDelta=priceDelta$down,outputPre=outPre,
+                          priceDownPre=priceDownPre,
+                          priceDownPost=priceDownPost,
+                          priceDownDelta=priceDelta$down,
+                          outputPre=outPre,
                           outputPost=outPost,outputDelta=outDelta)
     
     
@@ -273,12 +289,14 @@ setMethod(
     
     if(market){
       
-      thiscmcr <- thiscv <- NA
+      thiscmcr <- thiscv <- NA_real_
       #try(thiscmcr <- cmcr(object), silent=TRUE)
       try(thiscv <- CV(object),silent = TRUE)
       
-      #thispsdelta  <- NA_real_
-      #try(thispsdelta  <- sum(calcProducerSurplus(object,preMerger=FALSE) - calcProducerSurplus(object,preMerger=TRUE),na.rm=TRUE),silent=TRUE)
+      try(thispsPre <- calcProducerSurplus(object,TRUE),silent=TRUE)
+      try(thispsPost <- calcProducerSurplus(object,FALSE),silent=TRUE)
+      thispsdeltaUp  <- sum(thispsPost$up - thispsPre$up,na.rm=TRUE)
+      thispsdeltaDown  <- sum(thispsPost$down - thispsPre$down,na.rm=TRUE)
       
       isparty <- isParty == "*"
       
@@ -289,13 +307,14 @@ setMethod(
       results <- with(results,
                       data.frame(
                         'HHI Change' =  max(hhiUp,hhiDown),
-                        'Up Price Change (%)' = sum(priceDelta$up * outputPost/sum(outputPost),na.rm=TRUE),
-                        'Down Price Change (%)' = sum(priceDelta$down * outputPost/sum(outputPost),na.rm=TRUE),
-                        'Merging Party Price Change (%)'= sum(priceDelta[isparty] * outputPost[isparty], na.rm=TRUE) / sum(outputPost[isparty]),
+                        'Up Price Change (%)' = priceDelta$up,
+                        'Down Price Change (%)' = priceDelta$down,
+                        #'Merging Party Price Change (%)'= sum(priceDelta[isparty] * outputPost[isparty], na.rm=TRUE) / sum(outputPost[isparty]),
                         #'Compensating Marginal Cost Reduction (%)' = sum(thiscmcr * outputPost[isparty]) / sum(outputPost[isparty]),
                         'Consumer Harm ($)' = thiscv,
-                        #'Producer Benefit ($)' = thispsdelta,
-                        #'Difference ($)'= thiscv - thispsdelta,
+                        'Up Producer Benefit ($)' = thispsdeltaUp,
+                        'Down Producer Benefit ($)' = thispsdeltaDown,
+                        'Difference ($)'= thiscv - thispsdeltaUp - thispsdeltaDown,
                         check.names=FALSE
                       ))
       
@@ -354,7 +373,7 @@ setMethod(
 setMethod(
   f= "summary",
   signature= "Auction2ndCap",
-  definition=function(object,exAnte=FALSE,parameters=FALSE,digits=2){
+  definition=function(object,exAnte=FALSE,parameters=FALSE,market=TRUE,digits=2){
 
     curWidth <-  getOption("width")
 
@@ -391,12 +410,36 @@ setMethod(
     rownames(results) <- paste(isParty,object@labels)
 
 
+    if( market){
+    
+      thiscmcr <- thiscv <- NA_real_
+      #try(thiscmcr <- cmcr(object), silent=TRUE)
+      try(thiscv <- CV(object),silent = TRUE)
+      
+      try(thispsPre <- calcProducerSurplus(object,TRUE),silent=TRUE)
+      try(thispsPost <- calcProducerSurplus(object,FALSE),silent=TRUE)
+      thispsdelta  <- sum(thispsPost - thispsPre,na.rm=TRUE)
+      
+      
+      results <- with(results,
+                    data.frame(
+                      'HHI Change' = as.integer(HHI(outPre/sum(outPre),owner=object@ownerPost) - HHI(outPre/sum(outPre),owner=object@ownerPre)),
+                      'Industry Price Change (%)' = sum(priceDelta * outPost/sum(outPost, na.rm = TRUE),na.rm=TRUE),
+                      'Merging Party Price Change (%)'= sum(priceDelta[isParty] * outPost[isParty], na.rm=TRUE) / sum(outPost[isParty], na.rm=TRUE),
+                      'Compensating Marginal Cost Reduction (%)' = sum(thiscmcr * outPost[isParty]) / sum(outPost[isParty], na.rm=TRUE),
+                      'Consumer Harm ($)' = thiscv,
+                      'Producer Benefit ($)' = thispsdelta,
+                      'Difference ($)'= thiscv - thispsdelta,
+                      check.names=FALSE
+                    ))
+    }
     cat("\nMerger simulation results under '",class(object),"':\n\n",sep="")
 
     options("width"=100) # this width ensures that everything gets printed on the same line
     print(round(results,digits),digits=digits)
     options("width"=curWidth) #restore to current width
 
+    if(!market){
     cat("\n\tNotes: '*' indicates merging parties. Deltas are percent changes.\n")
 
     if(exAnte){cat("\tEx Ante shares and prices are reported.\n")}
@@ -411,7 +454,9 @@ setMethod(
     cat("% Change In Buyer's Expected Cost:",round((calcBuyerExpectedCost(object,FALSE)-calcBuyerExpectedCost(object,TRUE))/calcBuyerExpectedCost(object,TRUE)*100,digits),sep="\t")
     cat("\n\n")
 
-
+    rownames(results) <- object@labels
+    }
+    
     if(parameters){
 
       cat("\nSupplier Cost Distribution Parameters:\n\n")
@@ -425,7 +470,7 @@ setMethod(
 
     }
 
-    rownames(results) <- object@labels
+   
     return(invisible(results))
 
   })

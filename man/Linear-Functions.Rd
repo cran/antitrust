@@ -6,16 +6,36 @@
 \alias{loglinear}
 \title{Linear and Log-Linear Demand Calibration and Merger Simulation}
 \usage{
-linear(prices, quantities, margins, diversions, symmetry = TRUE,
-  ownerPre, ownerPost, mcDelta = rep(0, length(prices)),
-  subset = rep(TRUE, length(prices)), priceStart = prices,
-  control.slopes, labels = paste("Prod", 1:length(prices), sep = ""),
-  ...)
+linear(
+  prices,
+  quantities,
+  margins,
+  diversions,
+  symmetry = TRUE,
+  ownerPre,
+  ownerPost,
+  mcDelta = rep(0, length(prices)),
+  subset = rep(TRUE, length(prices)),
+  priceStart = prices,
+  control.slopes,
+  labels = paste("Prod", 1:length(prices), sep = ""),
+  ...
+)
 
-loglinear(prices, quantities, margins, diversions, ownerPre, ownerPost,
-  mcDelta = rep(0, length(prices)), subset = rep(TRUE, length(prices)),
-  priceStart = prices, control.equ, labels = paste("Prod",
-  1:length(prices), sep = ""), ...)
+loglinear(
+  prices,
+  quantities,
+  margins,
+  diversions,
+  ownerPre,
+  ownerPost,
+  mcDelta = rep(0, length(prices)),
+  subset = rep(TRUE, length(prices)),
+  priceStart = prices,
+  control.equ,
+  labels = paste("Prod", 1:length(prices), sep = ""),
+  ...
+)
 }
 \arguments{
 \item{prices}{A length k vector product prices.}
@@ -97,11 +117,11 @@ assumption that the firms are playing a
 differentiated Bertrand pricing game.
 
 
-\sQuote{diversion} must be a square matrix whose off-diagonal elements [i,j] estimate the diversion ratio from product i to product j
+\sQuote{diversions} must be a square matrix whose off-diagonal elements [i,j] estimate the diversion ratio from product i to product j
 (i.e. the estimated fraction of i's sales that go to j due to a small
   increase in i's price). Off-diagonal elements are restricted to be
 non-negative (products are assumed to be substitutes), diagonal elements
-must equal -1, and rows must sum to 0 (negative if you wish to include an outside good) . If \sQuote{diversion} is missing, then diversion according to quantity share is assumed.
+must equal -1, and rows must sum to 0 (negative if you wish to include an outside good) . If \sQuote{diversions} is missing, then diversion according to quantity share is assumed.
 
 
 
@@ -161,7 +181,7 @@ CV(result.linear)              # returns representative agent compensating varia
 
 
 ## Implement the Hypothetical Monopolist Test
-## for products 1 and 2 using a 5\\\% SSNIP
+## for products 1 and 2 using a 5\\% SSNIP
 
 #HypoMonTest(result.linear,prodIndex=1:2)
 

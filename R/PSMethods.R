@@ -5,6 +5,7 @@
 #' calcProducerSurplus,ANY-method
 #' calcProducerSurplus,Bertrand-method
 #' calcProducerSurplus,Cournot-method
+#' calcProducerSurplus,VertBargBertLogit-method
 #' calcProducerSurplusGrimTrigger
 #'
 #' @description In the following methods, \code{calcProducerSurplus} computes the expected profits of each supplier
@@ -81,13 +82,7 @@ setMethod(
   definition=function(object,preMerger=TRUE){
 
 
-    if( preMerger) {
-      prices <- object@pricePre
-      mc     <- object@mcPre
-    }
-    else{prices <- object@pricePost
-    mc     <- object@mcPost
-    }
+    margins <- calcMargins(object,preMerger,level=TRUE)
 
 
     output <- calcQuantities(object,preMerger)
@@ -97,13 +92,40 @@ setMethod(
       output <- calcShares(object,preMerger,revenue=FALSE)
     }
 
-    ps <- (prices - mc) * output
+    ps <- margins * output
     names(ps) <- object@labels
 
     return(ps)
   }
 
 )
+#'@rdname PS-methods
+#'@export
+setMethod(
+  f= "calcProducerSurplus",
+  signature= "VertBargBertLogit",
+  definition=function(object,preMerger=TRUE){
+    
+    mktSize <- object@down@mktSize
+    
+    margins <- calcMargins(object,preMerger=preMerger,level=TRUE)
+    
+    output <- calcShares(object,preMerger)
+    
+    if (is.na(mktSize)){
+      warning("'calcQuantities' yielded all NAs. Using 'calcShares' instead")
+      mktSize <- 1
+    }
+    
+    psup <- margins$up * output * mktSize
+    psdown <- margins$down * output * mktSize
+    names(psup) <- names(psdown) <-  object@down@labels
+    
+    return(list(up=psup,down=psdown))
+  }
+  
+)
+
 
 
 #'@rdname PS-methods

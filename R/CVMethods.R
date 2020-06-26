@@ -13,6 +13,8 @@
 #' CV,Logit-method
 #' CV,LogitNests-method
 #' CV,Auction2ndLogit-method
+#' CV,VertBargBertLogit-method
+#' CV,VertBarg2ndLogit-method
 #' CV,Cournot-method
 #'
 #' @description Calculate the amount of money a consumer would need to
@@ -112,7 +114,7 @@ setMethod(
 
     if(!is.na(mktSize)){ result <- result * mktSize}
 
-    return(result)
+    return(unname(result))
 
   })
 
@@ -200,16 +202,115 @@ setMethod(
   definition=function(object){
 
     mktSize = object@mktSize
-
+    alpha   = object@slopes$alpha
+    meanvalPre = object@slopes$meanval
+    idx <- object@normIndex
+    subset <- object@subset
+    
+    mcDelta <- object@mcDelta
+    
+    if (is.na(idx)) {
+      outVal <- 1
+      mcDeltaOut <- object@priceOutside
+    }
+    else {
+      outVal <- 0  
+      mcDeltaOut <- object@mcDelta[idx]
+    }
+    
+    meanvalPost =  meanvalPre + alpha * (object@mcDelta - mcDeltaOut)
+    
+    
     marginPre <- calcMargins(object, preMerger = TRUE, exAnte= TRUE)
     marginPost <- calcMargins(object, preMerger = FALSE, exAnte= TRUE)
 
-    result <- sum(marginPost) - sum(marginPre)
+    #sharePost <- calcShares(object,preMerger=FALSE,revenue=FALSE)
+    
+    result <- sum(marginPost,na.rm=TRUE) - 
+              sum(marginPre, na.rm =TRUE)
+    #+sum(mcDelta*sharePost, na.rm=TRUE)
 
+    ## Add the elimination of first best option
+    VPre  <- sum(exp(meanvalPre),na.rm=TRUE)  + outVal
+    VPost <- sum(exp(meanvalPost[subset]),na.rm=TRUE ) + outVal
+    
+    
+    
+    result <-   result  + log(VPost/VPre)/alpha  
+    
+    
     if(!is.na(mktSize)){result <- mktSize * result}
 
     return(result)
   })
+
+
+#'@rdname CV-Methods
+#'@export
+setMethod(
+  f= "CV",
+  signature= "VertBargBertLogit",
+  definition=function(object){
+    
+    down <- object@down
+    logitCV <- selectMethod("CV","Logit")
+    
+    return(logitCV(down))
+  }
+  )
+
+
+#'@rdname CV-Methods
+#'@export
+setMethod(
+  f= "CV",
+  signature= "VertBarg2ndLogit",
+  definition=function(object){
+    
+    down <- object@down
+    mktSize = down@mktSize
+
+alpha = down@slopes$alpha
+meanvalPre = down@slopes$meanval
+
+priceDelta <- calcPriceDelta(object,levels=TRUE)
+
+marginsPre <- calcMargins(object,preMerger=TRUE,level=TRUE)
+marginsPost <- calcMargins(object,preMerger=FALSE,level=TRUE)
+
+sharesPre <- calcShares(object, preMerger=TRUE, revenue=FALSE)
+sharesPost <- calcShares(object, preMerger=FALSE, revenue=FALSE)
+
+result <- sum(marginsPost$down*sharesPost,na.rm=TRUE) - sum(marginsPre$down*sharesPre,na.rm=TRUE)
+
+idx <- down@normIndex
+subset <- down@subset
+if (is.na(idx)) {
+  outVal <- 1
+  mcDeltaOut <- down@priceOutside
+}
+
+else {
+  outVal <- 0
+  mcDeltaOut <- down@mcDelta[idx]
+}
+
+
+meanvalPost = meanvalPre +  alpha * (priceDelta$up + down@mcDelta - 
+                                      mcDeltaOut)
+
+
+VPre <- sum(exp(meanvalPre), na.rm = TRUE) + outVal
+VPost <- sum(exp(meanvalPost[subset]), na.rm = TRUE) + outVal
+result <- result + log(VPost/VPre)/alpha
+
+if (!is.na(mktSize)) {
+  result <- mktSize * result
+}
+return(result)
+}
+)
+
 
 #'@rdname CV-Methods
 #'@export

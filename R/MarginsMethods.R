@@ -11,6 +11,7 @@
 #' calcMargins,Auction2ndLogit-method
 #' calcMargins,Auction2ndLogitNests-method
 #' calcMargins,Cournot-method
+#' calcMargins,BargainingLogit-method
 #'
 #' @description Computes equilibrium product margins assuming that firms are playing a
 #' Nash-Bertrand, Cournot, or 2nd Score Auction game. For "LogitCap", assumes firms are
@@ -74,6 +75,63 @@ setMethod(
   }
 
 )
+
+
+## compute margins
+#'@rdname Margins-Methods
+#'@export
+setMethod(
+  f= "calcMargins",
+  signature= "BargainingLogit",
+  definition=function(object,preMerger=TRUE, level=FALSE){
+    
+    
+    alpha <- object@slopes$alpha
+    
+    if( preMerger) {
+      
+      prices <- object@pricePre
+      owner  <- object@ownerPre
+      barg <- object@bargpowerPre
+      
+      
+    }
+    
+    else{
+      prices <- object@pricePost
+      owner  <- object@ownerPost
+      barg <- object@bargpowerPost
+      
+    }
+    
+    
+    barg <- barg/(1-barg) #relative bargaining
+    
+    nprods <- length(prices)
+    
+    shares <- calcShares(object,preMerger,revenue=FALSE)
+    
+    div <- shares/(1-shares)
+    
+    
+    #diag(owner) <- -1*diag(owner)
+    
+    margins <- -owner * shares
+    diag(margins) <- diag(owner) +  diag(margins)
+    margins <- solve(t(margins))
+    
+    margins <-  as.vector(margins %*% (log(1-shares)/(alpha*(barg*div - diag(owner)*log(1-shares)))))
+    
+    
+    if(!level) {margins <- margins / prices }
+    
+    names(margins) <- object@labels
+    
+    return(as.vector(margins))
+  }
+  
+)
+
 
 #'@rdname Margins-Methods
 #'@export
@@ -252,7 +310,11 @@ setMethod(
     shares     <- calcShares(object,TRUE)
 
     elastPre <-  t(elast(object,TRUE))
-    marginPre <-  -1 * as.vector(MASS::ginv(elastPre * ownerPre) %*% (shares * diag(ownerPre))) / shares
+    
+    elastInv <- try(solve(elastPre * ownerPre),silent=TRUE)
+    if(any(class(elastInv)=="try-catch")){elastInv <- MASS::ginv(elastPre * ownerPre)}
+    
+    marginPre <-  -1 * as.vector(elastInv %*% (shares * diag(ownerPre))) / shares
 
     if(preMerger){
       names(marginPre) <- object@labels

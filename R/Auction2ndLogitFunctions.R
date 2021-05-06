@@ -55,8 +55,6 @@
 #' TRUE.
 #' @param control.slopes A list of  \code{\link{optim}}  control parameters passed
 #' to the calibration routine optimizer (typically the \code{calcSlopes} method).
-#' @param control.equ A list of  \code{\link[BB]{BBsolve}} control parameters passed
-#' to the non-linear equation solver (typically the \code{calcPrices} method).
 #' @param labels A k-length vector of labels. Default is "Prod#", where
 #' \sQuote{#} is a number between 1 and the length of \sQuote{prices}.
 #'
@@ -64,7 +62,7 @@
 #' product margins from at least one firm, \code{auction2nd.logit} is able to
 #' recover the price coefficient and product mean valuations in a
 #' Logit demand model. \code{auction2nd.logit} then uses these
-#' calibrated parameters to simulate a merger between two firms, under the assumption that firms are particpating in a 2nd score procurement auction.
+#' calibrated parameters to simulate a merger between two firms, under the assumption that firms are participating in a 2nd score procurement auction.
 #'
 #'
 #' \code{auction2nd.logit.nests} is identical to \code{auction2nd.logit} except that it assumes
@@ -91,8 +89,8 @@
 #'
 #' share = c(0.29,0.40,0.28,0.03)
 #'
-#' price = c(35.53,  154, 84.08, 53.16)
-#' cost  =  c(NA, 101, NA, NA)
+#' price = c(35.53,  154, 84.08, 53.16)*1e3
+#' cost  =  c(NA, 101, NA, NA)*1e3
 #'
 #' ownerPre <- ownerPost <- diag(length(share))
 #'
@@ -101,12 +99,12 @@
 #'
 #' margin = price - cost
 #'
-#' result <- auction2nd.logit(price,share,margin,
+#' result.2nd <- auction2nd.logit(price,share,margin,
 #'                            ownerPre=ownerPre,ownerPost=ownerPost,normIndex=2)
 #'
 #'
-#' print(result)
-#' summary(result,revenue=FALSE)
+#' print(result.2nd)
+#' summary(result.2nd,revenue=FALSE)
 #'
 #' ##re-run without any price information except Firm 2
 #'
@@ -117,6 +115,18 @@
 #'
 #' print(result.noprice)
 #' summary(result.noprice,revenue=FALSE)
+#'
+#' ##changing the units of prices and margins can yield dramatically different results 
+#'
+#' price = c(35.53,  154, 84.08, 53.16)
+#' cost  =  c(NA, 101, NA, NA)
+#' margin <- price - cost
+#'
+#' result.units <- auction2nd.logit(price,share,margin,
+#'                                    ownerPre=ownerPre,ownerPost=ownerPost,normIndex=2)
+#'
+#' print(result.units)
+#' summary(result.units,revenue=FALSE)
 #'
 #' ## Get a detailed description of the 'Auction2ndLogit' class slots
 #' showClass("Auction2ndLogit")
@@ -286,7 +296,6 @@ auction2nd.logit.alm <- function(prices,shares,margins,
                                  mcDeltaOutside=0,
                                  parmsStart,
                                  control.slopes,
-                                 control.equ,
                                  labels=paste("Prod",1:length(prices),sep="")
 ){
 
@@ -320,9 +329,7 @@ auction2nd.logit.alm <- function(prices,shares,margins,
   if(!missing(control.slopes)){
     result@control.slopes <- control.slopes
   }
-  if(!missing(control.equ)){
-    result@control.equ <- control.equ
-  }
+
   ## Convert ownership vectors to ownership matrices
   result@ownerPre  <- ownerToMatrix(result,TRUE)
   result@ownerPost <- ownerToMatrix(result,FALSE)

@@ -25,6 +25,7 @@
 #' calcSlopes,Stackelberg-method
 #' calcSlopes,VertBargBertLogit-method
 #' calcSlopes,BargainingLogit-method
+#' calcSlopes,Bargaining2ndLogit-method
 #' getParms
 #' getParms,ANY-method
 #' getParms,Bertrand-method
@@ -580,8 +581,8 @@ setMethod(
 
       probs <- shares
       
-      predshares <- exp(meanval + alpha*prices)
-      predshares <- predshares/(is.na(idx)*exp(alpha*idxPrice) + sum(predshares) )
+      predshares <- exp(meanval + alpha*(prices-idxPrice))
+      predshares <- predshares/(is.na(idx) + sum(predshares) )
 
       preddiversion <-tcrossprod( 1/(1-predshares),predshares)
       diag(preddiversion) <- -1
@@ -600,8 +601,8 @@ setMethod(
       diag(elast) <- alpha*prices + diag(elast)
 
       elastInv <- try(solve(elast * ownerPre),silent=TRUE)
-      if(any(class(elastInv)=="try-catch")){elastInv <- MASS::ginv(elast * ownerPre)}
-      
+      if(any(class(elastInv)=="try-error")){elastInv <- MASS::ginv(elast * ownerPre)}
+     
       
       marginsCand <- -1 * as.vector(elastInv %*% (revenues * diag(ownerPre))) / revenues
       m1 <- margins - marginsCand
@@ -639,7 +640,7 @@ setMethod(
     
     
     if(minTheta$convergence != 0){
-      warning("'calcSlopes' nonlinear solver did not successfully converge. Reason: '",minTheta$message,"'")
+      warning("'calcSlopes' nonlinear solver may not have successfully converge. Reason: '",minTheta$message,"'")
     }
     
     
@@ -1169,8 +1170,8 @@ setMethod(
       preddiversion <- -elasticity/diag(elasticity)*tcrossprod(1/predshares,predshares)
       diag(preddiversion) <- -1
 
-      elastInv <- try(solve(elast * ownerPre),silent=TRUE)
-      if(any(class(elastInv)=="try-catch")){elastInv <- MASS::ginv(elast * ownerPre)}
+      elastInv <- try(solve(elasticity * ownerPre),silent=TRUE)
+      if(any(class(elastInv)=="try-error")){elastInv <- MASS::ginv(elasticity * ownerPre)}
       
       
       marginsCand <- -1 * as.vector(elastInv %*% (revenues * diag(ownerPre))) / revenues
@@ -1190,7 +1191,7 @@ setMethod(
     upperB[1] <- 0
     
     upperB[-(1:((nprods - !is.na(idx))+1))] <- 1
-    lowerB[-(1:((nprods - !is.na(idx))+1))] <- 0
+    lowerB[-(1:((nprods - !is.na(idx))+1))] <- 1e-3
     
     minTheta <- optim(parmsStart,minD,method="L-BFGS-B",
                       lower= lowerB,upper=upperB,
@@ -1200,6 +1201,8 @@ setMethod(
     if(minTheta$convergence != 0){
       warning("'calcSlopes' nonlinear solver did not successfully converge. Reason: '",minTheta$message,"'")
     }
+    
+    
 
 
 
@@ -1218,6 +1221,7 @@ setMethod(
     minSigma           <- minSigma[nests]
     names(minSigmaOut) <- levels(nests)
 
+    if(any(minSigmaOut %in%(c(1e-3,1)))) warning("nesting parameter 'sigma' at boundary constraint.")
 
 
 
@@ -1439,7 +1443,7 @@ setMethod(
       revenues <- probs * prices
       
       elastInv <- try(solve(elast * ownerPre * notBinds),silent=TRUE)
-      if(any(class(elastInv)=="try-catch")){elastInv <- MASS::ginv(elast * ownerPre *notBinds)}
+      if(any(class(elastInv)=="try-error")){elastInv <- MASS::ginv(elast * ownerPre *notBinds)}
       
       marginsCand <- -1 * as.vector(elastInv %*% (revenues * diag(ownerPre))) / revenues
 
@@ -1831,7 +1835,7 @@ setMethod(
       revenues <- probs * prices
       
       elastInv <- try(solve(elast * ownerPre),silent=TRUE)
-      if(any(class(elastInv)=="try-catch")){elastInv <- MASS::ginv(elast * ownerPre)}
+      if(any(class(elastInv)=="try-error")){elastInv <- MASS::ginv(elast * ownerPre)}
       
       marginsCand <- -1 * as.vector(elastInv %*% (revenues * diag(ownerPre))) / revenues
 
@@ -1969,7 +1973,7 @@ setMethod(
       diag(elasticity) <- -gamma + diag(elasticity)
 
       elastInv <- try(solve(elasticity * ownerPre),silent=TRUE)
-      if(any(class(elastInv)=="try-catch")){elastInv <- MASS::ginv(elasticity * ownerPre)}
+      if(any(class(elastInv)=="try-error")){elastInv <- MASS::ginv(elasticity * ownerPre)}
       
       
       marginsCand <- -1 * as.vector(elastInv %*% (predshares * diag(ownerPre))) / predshares
@@ -2063,7 +2067,7 @@ setMethod(
 
 
       elastInv <- try(solve(elasticity * ownerPre),silent=TRUE)
-      if(any(class(elastInv)=="try-catch")){elastInv <- MASS::ginv(elasticity * ownerPre)}
+      if(any(class(elastInv)=="try-error")){elastInv <- MASS::ginv(elasticity * ownerPre)}
       
       
       marginsCand <- -1 * as.vector(elastInv %*% (probs * diag(ownerPre))) / probs
@@ -2316,7 +2320,7 @@ setMethod(
     notMissing <- which(!is.na(margins))[1]
     
     ##Start at 50/50 Bargaining
-    parmStart <- log(1- shares[notMissing])/(margins[notMissing]*prices[notMissing]*(shares[notMissing]/(1- shares[notMissing]) - log(1- shares[notMissing])))
+    parmStart <- log(1- shares[notMissing])/(margins[notMissing]*prices[notMissing]*(1 - shares[notMissing])*(shares[notMissing]/(1- shares[notMissing]) - log(1- shares[notMissing])))
    
     mvalStart <-  log(shares) - log(idxShare) - parmStart * (prices - idxPrice)
     if(!is.na(idx)) mvalStart <-  mvalStart[-idx]
@@ -2362,8 +2366,8 @@ setMethod(
       
       probs <- shares
       
-      predshares <- exp(meanval + alpha*prices)
-      predshares <- predshares/(is.na(idx)*exp(alpha*idxPrice) + sum(predshares) )
+      predshares <- exp(meanval + alpha*(prices-idxPrice))
+      predshares <- predshares/(is.na(idx) + sum(predshares) )
       
       preddiversion <-predshares/(1-predshares)
       
@@ -2376,14 +2380,15 @@ setMethod(
       
       ownerPreInv <- ownerPre
       #diag(ownerPreInv) <- -1*diag(ownerPreInv)
-      ownerPreInv <- -1*ownerPreInv * predshares
+      ownerPreInv <- -1*t(ownerPreInv * predshares)
       diag(ownerPreInv) <- diag(ownerPre) + diag(ownerPreInv)
       
-      tmp <- try(solve(t(ownerPreInv)),silent=TRUE)
-      if(any(class(tmp)=="try-error")){ownerPreInv=MASS::ginv(t(ownerPreInv))}
+      tmp <- try(solve(ownerPreInv),silent=TRUE)
+      if(any(class(tmp)=="try-error")){ownerPreInv=MASS::ginv(ownerPreInv)}
       else{ ownerPreInv <- tmp}
       
-      marginsCand <-  ownerPreInv %*% (log(1-predshares)/(alpha*(barg*predshares/(1-predshares) - diag(ownerPre)*log(1-predshares))))
+      marginsCand <-  ownerPreInv %*% ((log(1-predshares)*diag(ownerPre))/(alpha*(barg*predshares/(1-predshares) - 
+                                                                   log(1-predshares))))
       marginsCand <- as.vector(marginsCand)
       m1 <- margins - marginsCand/prices
       m2 <- (predshares - probs)
@@ -2459,6 +2464,83 @@ setMethod(
   }
 )
 
+
+
+#'@rdname Params-Methods
+#'@export
+setMethod(
+  f= "calcSlopes",
+  signature= "Bargaining2ndLogit",
+  definition=function(object){
+    
+    ## Uncover Demand Coefficents
+    
+    
+    ownerPre     <-  object@ownerPre
+    shares       <-  object@shares
+    margins      <-  object@margins
+    prices       <-  object@prices
+    idx          <-  object@normIndex
+    mktElast     <-  object@mktElast
+    barg         <-  object@bargpowerPre
+    
+    
+    
+    avgPrice <- weighted.mean(prices,shares)
+    
+    ## Uncover price coefficient and mean valuation from margins and revenue shares
+    
+    
+    nprods <- length(shares)
+    
+    
+    
+    firmShares <- drop(ownerPre %*% shares)
+    
+    if(is.na(idx)){
+      idxShare <- 1 - object@shareInside
+      
+    }
+    else{
+      idxShare <- shares[idx]
+      
+    }
+    
+    shareOut <-  1 - object@shareInside
+    
+    ## Minimize the distance between observed and predicted  ex Ante margins
+    minD <- function(alpha){
+      
+      
+      
+      m1 <-  mktElast / (alpha * avgPrice) - shareOut
+      
+      m2 <- 1 - (1-barg)*(log(1-firmShares)/( alpha * firmShares))/margins
+      
+      measure <- sum(c(m1,m2)^2,na.rm=TRUE)
+      
+      return(measure)
+    }
+    
+    minAlpha <- optimize(minD,c(-1e6,0),
+                         tol=object@control.slopes$reltol)$minimum
+    
+  
+    
+    
+    meanval <- log(shares) - log(idxShare)
+    
+    names(meanval)   <- object@labels
+    
+    object@slopes    <- list(alpha=minAlpha,meanval=meanval)
+    object@mktSize   <- object@insideSize/object@shareInside
+    
+    
+    return(object)
+  }
+)
+
+
 #'@rdname Params-Methods
 #'@export
 setMethod(
@@ -2477,10 +2559,11 @@ setMethod(
     constrain <- object@constrain
     
 
-    owner.up <- up@ownerPre
-    owner.down <- down@ownerPre
+    owner.up.pre <- up@ownerPre
+    owner.down.pre <- down@ownerPre
     
-    
+    owner.up.post <- up@ownerPost
+    owner.down.post <- down@ownerPost
   
     
     pricesUp    <- up@prices
@@ -2504,8 +2587,8 @@ setMethod(
     }
     
     
-    id <- data.frame(up.firm=owner.up,
-                     down.firm=owner.down
+    id <- data.frame(up.firm=owner.up.pre,
+                     down.firm=owner.down.pre
                      )
     
     
@@ -2546,7 +2629,7 @@ setMethod(
     div <- as.vector(div)
     
     
-    vertFirms <- intersect(owner.up,owner.down)
+    vertFirms <- intersect(owner.up.pre,owner.down.pre)
     
     ownerDownMat <-  ownerToMatrix(down, preMerger=TRUE)
     ownerBargUpVert<- ownerToMatrix(up, preMerger=TRUE)
@@ -2560,31 +2643,37 @@ setMethod(
       b <- b[as.numeric(id)]
       
   
-      b[owner.up == owner.down] <- 1 
+      b[owner.up.pre == owner.down.pre] <- 1 
       
       for( v in vertFirms){
         
-        vertrows <- owner.up != v  & owner.down == v
-        ownerBargUpVert[vertrows, owner.up == v] <- -(1-b[vertrows])/b[vertrows]
+        vertrows <- owner.up.pre != v  & owner.down.pre == v
+        ownerBargUpVert[vertrows, owner.up.pre == v] <- -(1-b[vertrows])/b[vertrows]
       }
       
+      ## set integrated margin disagreement payoff to 0,
+      ## constrain upstream integrated margin to zero
+      
+      for(n in which(owner.up.pre==owner.down.pre)){
+        ownerBargUpVert[n,-n] <- ownerBargUpVert[-n,n] <- 0
+      }
       
       ownerBargDownVert  <-  ownerDownMat  * (1-b)/b
       
       for( v in vertFirms){
         
-        vertrows <-  owner.up == v  & owner.down != v
+        vertrows <-  owner.up.pre == v  & owner.down.pre != v
         
         ## only change downstream matrix when firms are playing Bertrand
-        if(!is2nd){ownerDownMatVertical[owner.down == v, vertrows] <- 1}
-        #ownerDownMatVertical[owner.down == v, !vertrows] <- 0
+        if(!is2nd){ownerDownMatVertical[owner.down.pre == v, vertrows] <- 1}
+        #ownerDownMatVertical[owner.down.pre == v, !vertrows] <- 0
         
         
-        ownerBargDownVert [vertrows, owner.down == v] <- -1
+        ownerBargDownVert [vertrows, owner.down.pre == v] <- -1
         
       }
       
-      #ownerDownMatVertical[!owner.down %in% vertFirms, ] <- 0
+      #ownerDownMatVertical[!owner.down.pre %in% vertFirms, ] <- 0
       
       down@ownerPre <- ownerDownMat
       
@@ -2638,14 +2727,14 @@ setMethod(
     
     bOpt     <- thetaOpt$par[-1]
     bargparmPre <- bargparmPost <-  bOpt[as.numeric(id)]
-    bargparmPre[owner.up  == owner.down ] <- 1 
+    bargparmPre[owner.up.pre  == owner.down.pre ] <- 1 
     names(bargparmPre) <- down@labels
     
     ## Post-merger bargaining parameter
     
-    #owner.up <- up@ownerPost
+    #owner.up.pre <- up@ownerPost
     #owner.down <- down@ownerPost
-    bargparmPost[owner.up  == owner.down ] <- 1 
+    bargparmPost[owner.up.post  == owner.down.post ] <- 1 
     names(bargparmPost) <- down@labels
       
       

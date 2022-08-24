@@ -3,6 +3,7 @@
 \name{BargainingLogit-Functions}
 \alias{BargainingLogit-Functions}
 \alias{bargaining.logit}
+\alias{bargaining2nd.logit}
 \title{Nash Bargaining Model with Logit Demand}
 \usage{
 bargaining.logit(
@@ -21,6 +22,23 @@ bargaining.logit(
   priceOutside = 0,
   control.slopes,
   control.equ,
+  labels = paste("Prod", 1:length(prices), sep = "")
+)
+
+bargaining2nd.logit(
+  prices,
+  shares,
+  margins,
+  ownerPre,
+  ownerPost,
+  bargpowerPre = rep(0.5, length(prices)),
+  bargpowerPost = bargpowerPre,
+  normIndex = ifelse(isTRUE(all.equal(sum(shares), 1, check.names = FALSE)), 1, NA),
+  mcDelta = rep(0, length(prices)),
+  subset = rep(TRUE, length(prices)),
+  insideSize = NA_real_,
+  mcDeltaOutside = 0,
+  control.slopes,
   labels = paste("Prod", 1:length(prices), sep = "")
 )
 }
@@ -65,13 +83,13 @@ post-merger simulation and FALSE if it should be excluded.Default is a
 length k vector of TRUE.}
 
 \item{priceStart}{A vector of length k who elements equal to an
-initial guess of equilbrium prices. default is \sQuote{prices}.}
+initial guess of equilibrium prices. default is \sQuote{prices}.}
 
 \item{insideSize}{An integer equal to total pre-merger units sold.
 If shares sum to one, this also equals the size of the market.}
 
-\item{priceOutside}{A postive real number equal to the price of the outside good.
-Default equals 1 for Logit demand.}
+\item{priceOutside}{A positive real number equal to the price of the outside good.
+Default equals 0 for Logit demand.}
 
 \item{control.slopes}{A list of  \code{\link{optim}}  control parameters passed
 to the calibration routine optimizer (typically the \code{calcSlopes} method).}
@@ -81,10 +99,15 @@ to the non-linear equation solver (typically the \code{calcPrices} method).}
 
 \item{labels}{A k-length vector of labels. Default is "Prod#", where
 \sQuote{#} is a number between 1 and the length of \sQuote{prices}.}
+
+\item{mcDeltaOutside}{A length 1 vector indicating the change in the marginal cost of the
+outside good. Default is 0.}
 }
 \value{
 \code{bargaining.logit} returns an instance of \code{\linkS4class{BargainingLogit}},
-a child class of \code{\linkS4class{Logit}}.
+a child class of \code{\linkS4class{Logit}}. 
+\code{bargaining2nd.logit} returns an instance of \code{\linkS4class{Bargaining2ndLogit}},
+a child class of \code{\linkS4class{Auction2ndLogit}}.
 }
 \description{
 Calibrates consumer demand using  Logit and then
@@ -100,7 +123,8 @@ Using product prices, quantity shares and all of the
 product margins from at least one firm, \code{auction2nd.logit} is able to
 recover the price coefficient and product mean valuations in a
 Logit demand model. \code{auction2nd.logit} then uses these
-calibrated parameters to simulate a merger between two firms, under the assumption that firms are particpating in a 2nd score procurement auction.
+calibrated parameters to simulate a merger between two firms, under the assumption that firms are participating in a A Nash Bargaining Game 
+(bargaining.logit) or splitting the full surplus (bargaining2nd.logit).
 }
 \examples{
 ## Calibration and simulation results from a merger between firms 2 and 3
@@ -143,5 +167,5 @@ Miller, Nathan (2014). \dQuote{Modeling the effects of mergers in procurement}
 for simulating mergers under a 2nd score auction with Logit demand.
 }
 \author{
-Charles Taragin \email{ctaragin@ftc.gov}
+Charles Taragin \email{ctaragin+antitrustr@gmail.com}
 }

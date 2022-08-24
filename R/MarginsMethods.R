@@ -12,9 +12,10 @@
 #' calcMargins,Auction2ndLogitNests-method
 #' calcMargins,Cournot-method
 #' calcMargins,BargainingLogit-method
+#' calcMargins,Bargaining2ndLogit-method
 #'
 #' @description Computes equilibrium product margins assuming that firms are playing a
-#' Nash-Bertrand, Cournot, or 2nd Score Auction game. For "LogitCap", assumes firms are
+#' Nash-Bertrand, Cournot, 2nd Score Auction, or Bargaining game. For "LogitCap", assumes firms are
 #' playing a Nash-Bertrand or Cournot game with capacity constraints.
 #'
 #' @param object An instance of one of the classes listed above.
@@ -82,6 +83,31 @@ setMethod(
 #'@export
 setMethod(
   f= "calcMargins",
+  signature= "Bargaining2ndLogit",
+  definition=function(object,preMerger=TRUE,exAnte=FALSE,level=TRUE){
+  
+    if( preMerger) {
+      
+      barg <- object@bargpowerPre
+      
+      
+    }
+    
+    else{
+      
+      barg <- object@bargpowerPost
+      
+    }
+      
+    (1-barg)*callNextMethod()
+    
+  })
+
+## compute margins
+#'@rdname Margins-Methods
+#'@export
+setMethod(
+  f= "calcMargins",
   signature= "BargainingLogit",
   definition=function(object,preMerger=TRUE, level=FALSE){
     
@@ -120,7 +146,8 @@ setMethod(
     diag(margins) <- diag(owner) +  diag(margins)
     margins <- solve(t(margins))
     
-    margins <-  as.vector(margins %*% (log(1-shares)/(alpha*(barg*div - diag(owner)*log(1-shares)))))
+    margins <-  as.vector(margins %*% ((log(1-shares)*diag(owner))/(alpha*(barg*div - 
+                                                               log(1-shares)))))
     
     
     if(!level) {margins <- margins / prices }
@@ -312,7 +339,7 @@ setMethod(
     elastPre <-  t(elast(object,TRUE))
     
     elastInv <- try(solve(elastPre * ownerPre),silent=TRUE)
-    if(any(class(elastInv)=="try-catch")){elastInv <- MASS::ginv(elastPre * ownerPre)}
+    if(any(class(elastInv)=="try-error")){elastInv <- MASS::ginv(elastPre * ownerPre)}
     
     marginPre <-  -1 * as.vector(elastInv %*% (shares * diag(ownerPre))) / shares
 

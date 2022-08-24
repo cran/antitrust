@@ -524,7 +524,8 @@ setMethod(
       if(any(class(tmp)=="try-error")) {elastInv <- MASS::ginv(t(elastInv))}
       else{elastInv <- tmp}
       
-      thisFOC <- (priceCand - mc) - elastInv %*%(log(1-shares)/(alpha*(barg*shares/(1-shares)- diag(owner)*log(1-shares))))
+      thisFOC <- (priceCand - mc)  - elastInv %*%((log(1-shares)*diag(owner))/(alpha*(barg*shares/(1-shares)- 
+                                                                          log(1-shares))))
       
       return(as.vector(thisFOC))
     }
@@ -710,7 +711,7 @@ setMethod(
     
     priceStartUp <- up@priceStart
     priceStartDown <- down@priceStart
-    priceStart <- c(priceStartUp[subsetDown])
+    priceStart <- c(priceStartUp[subsetDown],priceStartDown[subsetDown])
     
     
     nprods <- length(priceStartDown)
@@ -753,7 +754,7 @@ setMethod(
       
       priceCandUp= rep(NA, 1,nprods)[subsetDown] 
       priceCandUp <- priceCand[1:length(priceCandUp)]
-      #priceCandDown <- priceCand[-(1:length(priceCandUp))]
+      priceCandDown <- priceCand[-(1:length(priceCandUp))]
       
       
       down@slopes$meanval <- meanval  + alpha *(priceCandUp - priceOutside)
@@ -772,11 +773,12 @@ setMethod(
       
       upFOC <-  (ownerUpLambda * div) %*%(priceCandUp - mcUp) - ((ownerDownLambda * div) %*% marginsDownCand)
         
-      #downFOC <- priceCandDown - priceCandUp - mcDown - marginsDownCand
+      downFOC <- priceCandDown - priceCandUp - mcDown - marginsDownCand
       
       
-      thisFOC= #c(downFOC,
+      thisFOC= c(downFOC,
                  as.vector(upFOC)
+      )
       
       return(thisFOC)
     }
@@ -794,14 +796,13 @@ setMethod(
     
     
     minResultUp[subsetDown] <- minResult[1:length(priceStartUp[subsetDown])] 
-    #minResultDown[subsetDown] <- minResult[-(1:length(priceStartUp[subsetDown]))]
+    minResultDown[subsetDown] <- minResult[-(1:length(priceStartUp[subsetDown]))]
     
     down@slopes$meanval <- meanval  + alpha *(minResultUp - priceOutside)
     
-  
-    marginsDown <- calcMargins(down, preMerger=preMerger,level=TRUE)
+  #marginsDown <- calcMargins(down, preMerger=preMerger,level=TRUE)
     
-    minResultDown <- marginsDown  + minResultUp + mcDown 
+    #minResultDown <- marginsDown  + minResultUp + mcDown 
     
     return(list(up=minResultUp,down=minResultDown)) 
   }

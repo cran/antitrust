@@ -1,10 +1,16 @@
 Package: antitrust
 Type: Package
 Title: Tools for Antitrust Practitioners
-Version: 0.99.25
-Date: 2021-05-04
-Author: Charles Taragin and Michael Sandfort
-Maintainer: Charles Taragin <ctaragin@ftc.gov>
+Version: 0.99.26
+Date: 2022-08-22
+Authors@R: c(person("Charles", "Taragin", email = "ctaragin+antitrustr@gmail.com",
+                  role = c("aut", "cre")),
+             person("Michael", "Sandfort",
+                  role = c("aut")),
+             person("Shlok", "Goyal",
+                  role = c("ctb"))     
+                  )
+Maintainer: Charles Taragin <ctaragin+antitrustr@gmail.com>
 Imports: methods, BB, numDeriv
 Suggests: ggplot2, knitr, bookdown, rmarkdown, competitiontoolbox
 VignetteBuilder: knitr
@@ -14,7 +20,7 @@ URL: https://github.com/luciu5/antitrust
 License: CC0
 LazyLoad: yes
 Collate: 'AntitrustClasses.R' 'BertrandClasses.R'
-        'BertrandRUMClasses.R' 'BargainingClasses.R' 'AuctionClasses.R'
+        'BertrandRUMClasses.R' 'AuctionClasses.R' 'BargainingClasses.R'
         'VerticalClasses.R' 'CournotClasses.R' 'OwnershipMethods.R'
         'SummaryMethods.R' 'ShowMethods.R' 'AuctionCapMethods.R'
         'PricesMethods.R' 'CostMethods.R' 'MarginsMethods.R'
@@ -30,8 +36,11 @@ Collate: 'AntitrustClasses.R' 'BertrandClasses.R'
         'CournotFunctions.R' 'HHIFunctions.R' 'LinearFunctions.R'
         'LogitFunctions.R' 'SimFunctions.R' 'VerticalFunctions.R'
         'antitrust-deprecated.R'
-RoxygenNote: 7.1.1
+RoxygenNote: 7.2.0
 NeedsCompilation: no
-Packaged: 2021-05-05 16:09:16 UTC; ctara
+Packaged: 2022-08-23 20:15:28 UTC; ctara
+Author: Charles Taragin [aut, cre],
+  Michael Sandfort [aut],
+  Shlok Goyal [ctb]
 Repository: CRAN
-Date/Publication: 2021-05-06 10:10:18 UTC
+Date/Publication: 2022-08-24 07:00:15 UTC

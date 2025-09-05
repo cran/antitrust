@@ -4,6 +4,7 @@
 #' @aliases HypoMonTest
 #' HypoMonTest,ANY-method
 #' HypoMonTest,Bertrand-method
+#' HypoMonTest,VertBargBertLogit-method
 #' calcPricesHypoMon
 #' calcPricesHypoMon,ANY-method
 #' calcPricesHypoMon,AIDS-method
@@ -23,7 +24,7 @@
 #' diversionHypoMon,AIDS-method
 #' diversionHypoMon,Bertrand-method
 #'
-#' @description An Implementation of the Hypothetical Monopolist Test described in the 2010 Horizontal Merger Guidelines.
+#' @description An Implementation of the Hypothetical Monopolist Test described in either the 2023 or 2010 Merger Guidelines.
 #' @description \code{\link{HypoMonTest}} implements the Hypothetical Monopolist Test for a given \sQuote{ssnip}.
 #' @description \code{calcPricesHypoMon} computes prices for a subset of firms under the control of a hypothetical monopolist
 #' under the specified demand function or auction.
@@ -39,18 +40,21 @@
 #' @param plantIndex A vector of plant indices that are to be placed under the control of the Hypothetical Monopolist (Cournot).
 #' @param ssnip A number between 0 and 1 that equals the threshold for a \dQuote{Small but Significant and
 #' Non-transitory Increase in Price} (SSNIP). Default is .05, or 5\%.
+#' @param hmg Either the string "2023" (default) or "2010". Implements the Hypothetical Monopolist Test described in either the 2010 or 2023 Merger Guidelines.
 #' @param ... Pass options to the optimizer used to solve for equilibrium prices.
 #'
 #' @details
 #' Let k denote the number of products produced by all firms playing the Bertrand pricing game above.
 #'
 #' @details
-#' \code{HypoMonTest} is an implementation of the Hypothetical Monopolist Test
+#' \code{HypoMonTest} is an implementation of the 2023 Merger Guidelines Hypothetical Monopolist Test
 #' on the products indexed by \sQuote{prodIndex} for a \sQuote{ssnip}. The
-#' Hypothetical Monopolist Test determines whether a profit-maximizing
+#' Hypothetical Monopolist Test described in the 2023 Merger Guidelines determines whether a profit-maximizing
 #' Hypothetical Monopolist who controls the products indexed by
-#' \sQuote{prodIndex} would increase the price of at least one of the merging parties' products in \sQuote{prodIndex} by a
-#' small, significant, and non-transitory amount (i.e. impose a SSNIP).
+#' \sQuote{prodIndex} would increase the price of at least one of the products in \sQuote{prodIndex} by a
+#' small, significant, and non-transitory amount (i.e. impose a SSNIP). Setting \sQuote{hmg} to "2010" implements the
+#' Hypothetical Monopolist Test described in the 2010 Merger Guidelines, which requires the Hypothetical Monopolist to 
+#' increase the price of one of the merging parties' products in \sQuote{prodIndex} by a SSNIP. 
 #'
 #' @details
 #' \code{calcPriceDeltaHypoMon} calculates the price changes relative to (predicted) pre-merger prices that a
@@ -119,19 +123,22 @@ setGeneric (
 setMethod(
   f= "HypoMonTest",
   signature= "Bertrand",
-  definition=function(object,prodIndex,ssnip=.05,...){
+  definition=function(object,prodIndex,ssnip=ifelse(object@output,.05,-.05),hmg=c("2023","2010"),...){
 
+    hmg <- match.arg(hmg)
     ownerPre <- object@ownerPre
     nprods   <- ncol(ownerPre)
     pricesDelta <- rep(0,nprods)
+    output <- object@output
 
     if(missing(prodIndex) || any(prodIndex>nprods | prodIndex <1 ) ){
       stop("'prodIndex' must be a vector of product indices between 1 and ",nprods)
     }
 
-    if(length(ssnip)>1 || ssnip<0 | ssnip>1 ){stop("'ssnip' must be a number between 0 and 1")}
+    if(length(ssnip)>1 || abs(ssnip)>1 ){stop("absolute value of 'ssnip' must be less than 1")}
 
-    isParty <- rowSums( abs(object@ownerPost - ownerPre) )>0 #identify which products belong to the merging parties
+    if(hmg=="2010"){ isParty <- rowSums( abs(object@ownerPost - ownerPre) )>0} #identify which products belong to the merging parties}
+    else if(hmg=="2023"){isParty <- rep(TRUE,nprods)}
 
     if(identical(length(intersect(which(isParty),prodIndex)),0)){
       stop("'prodIndex' does not contain any of the merging parties' products. Add at least one of the following indices: ",
@@ -143,7 +150,10 @@ setMethod(
     pricesDelta[prodIndex] <-  calcPriceDeltaHypoMon(object,prodIndex,...)
 
 
-    result <- max(pricesDelta[isParty]) > ssnip
+    
+    result <- ifelse(output,max(pricesDelta[isParty]) > ssnip,
+                     min(pricesDelta[isParty]) < ssnip)
+                     
 
     return( result)
   }
@@ -151,16 +161,37 @@ setMethod(
 )
 
 
+setMethod(
+  f= "HypoMonTest",
+  signature= "VertBargBertLogit",
+  
+  definition=function(object,prodIndex,ssnip,hmg=c("2023","2010"),...){
+    
+    if(missing(ssnip)){
+      ssnip <- ifelse(object@down@output,.05,-.05)}
+    
+    hmg=match.arg(hmg)
+    down <- object@down
+    down@ownerPre <- ownerToMatrix(down,preMerger=TRUE)
+    down@ownerPost <- ownerToMatrix(down,preMerger=FALSE)
+    down@pricePre <- calcPrices(down,preMerger=TRUE)
+    
+    HypoMonTest(object=down,prodIndex=prodIndex,ssnip=ssnip,hmg=hmg,...)
+    
+  })
+
 #'@rdname defineMarketTools-methods
 #'@export
 setMethod(
   f= "HypoMonTest",
   signature= "Cournot",
-  definition=function(object,plantIndex,prodIndex,ssnip=.05,...){
+  definition=function(object,plantIndex,prodIndex,ssnip=ifelse(object@output,.05,-.05),hmg=c("2023","2010"),...){
     
+    hmg <- match.arg(hmg)
     ownerPre <- object@ownerPre
     nprods   <- ncol(ownerPre)
     nplants <- nrow(ownerPre)
+    output <- object@output
 
     
     if(missing(plantIndex) || any(plantIndex>nplants | plantIndex <1 ) ){
@@ -170,12 +201,13 @@ setMethod(
     if(missing(prodIndex) || length(prodIndex) != 1 || any(prodIndex>nprods | prodIndex <1 ) ){
       stop("'prodIndex' must be between between 1 and ",nprods)
     }
-    if(length(ssnip)>1 || ssnip<0 | ssnip>1 ){stop("'ssnip' must be a number between 0 and 1")}
+    if(length(ssnip)>1 || abs(ssnip)>1 ){stop("absolute value of 'ssnip' must be a number between 0 and 1")}
     
-    isParty <- rowSums( abs(object@ownerPost - object@ownerPre) )>0 #identify which plants belong to the merging parties
+    if(hmg=="2010"){     isParty <- rowSums( abs(object@ownerPost - object@ownerPre) )>0} #identify which plants belong to the merging parties
+    else if(hmg=="2023"){isParty <- rep(TRUE,nplants)}
     
     if(identical(length(intersect(which(isParty),plantIndex)),0)){
-      stop("'planIndex' does not contain any of the merging parties' plants. Add at least one of the following indices: ",
+      stop("'plantIndex' does not contain any of the merging parties' plants. Add at least one of the following indices: ",
            paste(which(isParty),collapse=","))
     }
     
@@ -184,7 +216,9 @@ setMethod(
     pricesDelta <-  calcPriceDeltaHypoMon(object,prodIndex=prodIndex,plantIndex=plantIndex,...)
     
     
-    result <-pricesDelta > ssnip
+
+    result <- ifelse(output,max(pricesDelta) > ssnip,
+                     min(pricesDelta) < ssnip)
     
     return( result)
   }
@@ -345,6 +379,8 @@ setMethod(
 
     mc       <- object@mcPre[prodIndex]
     pricePre <- object@pricePre
+    output <- object@output
+    outSign <- ifelse(output,1,-1)
 
     calcMonopolySurplus <- function(priceCand){
 
@@ -352,7 +388,7 @@ setMethod(
       object@pricePre     <- pricePre
       sharesCand          <- calcShares(object,TRUE,revenue=FALSE)
 
-      surplus             <- (priceCand-mc)*sharesCand[prodIndex]
+      surplus             <- outSign*(priceCand-mc)*sharesCand[prodIndex]
 
       return(sum(surplus,na.rm=TRUE))
     }
@@ -383,6 +419,8 @@ setMethod(
 
     mc <- object@mcPre[prodIndex]
     pricePre <- object@pricePre
+    output <- object@output
+    outSign <- ifelse(output,1,-1)
 
     calcMonopolySurplus <- function(priceCand){
 
@@ -391,7 +429,7 @@ setMethod(
       quantityCand        <- calcQuantities(object,TRUE)
 
 
-      surplus             <- (priceCand-mc)*quantityCand[prodIndex]
+      surplus             <- outSign*(priceCand-mc)*quantityCand[prodIndex]
 
 
       return(sum(surplus))
@@ -450,7 +488,11 @@ setMethod(
 
       object@pricePre <- thisPrice
 
-      margins          <- 1 - mc/priceCand
+      output <- object@output
+      outSign <- ifelse(output,1,-1)
+      
+      margins          <- outSign*(1 - mc/priceCand)
+      
       quantities       <- calcQuantities(object,preMerger=TRUE)[prodIndex]
       revenues         <- quantities * priceCand
       elasticities     <- elast(object,preMerger=TRUE)[prodIndex,prodIndex]

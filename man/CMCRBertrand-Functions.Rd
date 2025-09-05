@@ -14,6 +14,7 @@ cmcr.bertrand(
   diversions,
   ownerPre,
   ownerPost = matrix(1, ncol = length(prices), nrow = length(prices)),
+  output = TRUE,
   rel = c("cost", "price"),
   labels = names(prices)
 )
@@ -24,6 +25,7 @@ upp.bertrand(
   diversions,
   ownerPre,
   ownerPost = matrix(1, ncol = length(prices), nrow = length(prices)),
+  output = TRUE,
   mcDelta = rep(0, length(prices)),
   labels = paste("Prod", 1:length(prices), sep = "")
 )
@@ -42,6 +44,9 @@ a k x k matrix of pre-merger ownership shares.}
 
 \item{ownerPost}{A k x k matrix of post-merger
 ownership shares. Default is a k x k matrix of 1s.}
+
+\item{output}{length 1 logical vector equal TRUE if calculation is for output market and 
+FALSE if for input market. Default is TRUE}
 
 \item{rel}{A length 1 character vector indicating whether CMCR should be calculated
 relative to pre-merger cost (``cost'') or pre-merger price (``price''), 
@@ -74,7 +79,7 @@ Let k denote the number of products produced by the merging parties below.
 }
 \details{
 All \sQuote{prices} elements must be positive, all \sQuote{margins}
-elements must be between 0 and 1, and all \sQuote{diversions} elements must be
+elements must be between 0 and 1 (\sQuote{output}=TRUE only), and all \sQuote{diversions} elements must be
 between 0 and 1 in absolute value. In
 addition, off-diagonal elements (i,j) of \sQuote{diversions}
 must equal an estimate of the diversion ratio from product i to product j

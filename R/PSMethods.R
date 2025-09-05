@@ -31,7 +31,6 @@
 #' equal to the number of products produced by any firm participating in
 #' the coalition and the following 5 columns
 #'
-#' \itemize{
 #'     \item{Discount:}{The user-supplied discount rate}
 #'     \item{Coord:}{Single period producer surplus from coordinating}
 #'     \item{Defect:}{Single period producer surplus from defecting}
@@ -39,7 +38,6 @@
 #'     \item{IC:}{TRUE if the discounted producer surplus from coordinating across all firm products are
 #'     greater than the surplus from defecting across all firm products for one period and receiving
 #'     discounted Bertrand surplus for all subsequent periods under Grim Trigger.}
-#' }
 #'
 #'
 #' @param object An instance of one of the classes listed above.
@@ -217,7 +215,7 @@ setMethod(
     nprod  <- length(object@labels)
     if(!is.numeric(coalition) ||
        length(coalition) > nprod ||
-       !coalition %in% 1:nprod){
+       !all(coalition %in% 1:nprod)){
       stop ("'coalition' must be a vector of product indices no greater than the number of products")
     }
     if(any(discount<=0 | discount>=1,na.rm=TRUE)){

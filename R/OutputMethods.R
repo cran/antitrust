@@ -81,6 +81,7 @@ setMethod(
   signature= "Cournot",
   definition=function(object,preMerger=TRUE,market=FALSE,...){
 
+    #output <- object@output
     slopes <- object@slopes
     intercepts <- object@intercepts
     quantityStart <- object@quantityStart
@@ -292,6 +293,9 @@ setMethod(
 
   })
 
+
+
+
 #'@rdname Output-Methods
 #'@export
 setMethod(
@@ -488,7 +492,7 @@ setMethod(
 setMethod(
   f= "calcShares",
   signature= "Auction2ndCap",
-  definition=function(object,preMerger=TRUE,exAnte=TRUE){
+  definition=function(object,preMerger=TRUE,exAnte=TRUE,revenue=FALSE){
 
 
     ownerPre  <- object@ownerPre
@@ -656,6 +660,8 @@ setMethod(
 
   }
 )
+
+
 
 #'@rdname Output-Methods
 #'@export

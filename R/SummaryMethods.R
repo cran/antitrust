@@ -37,7 +37,7 @@ NULL
 setMethod(
   f= "summary",
   signature= "Bertrand",
-  definition=function(object,revenue=TRUE,shares=TRUE,levels=FALSE,parameters=FALSE,market=FALSE,insideOnly = TRUE,digits=2,...){
+  definition=function(object,revenue=TRUE,shares=TRUE,levels=FALSE,parameters=FALSE,market=FALSE,insideOnly = FALSE,digits=2,...){
 
     curWidth <-  getOption("width")
 
@@ -124,8 +124,8 @@ setMethod(
       results <- with(results,
                       data.frame(
                         'HHI Change' = as.integer(HHI(outputPre/sum(outputPre),owner=object@ownerPost) - HHI(outputPre/sum(outputPre),owner=object@ownerPre)),
-                        'Industry Price Change (%)' = sum(priceDelta * outputPost/sum(outputPost, na.rm = TRUE),na.rm=TRUE),
-                        'Merging Party Price Change (%)'= sum(priceDelta[isparty] * outputPost[isparty], na.rm=TRUE) / sum(outputPost[isparty], na.rm=TRUE),
+                        'Industry Price Change (%)' = calcPriceDelta(object,market=TRUE,levels=levels,index="paasche")*100,
+                        'Merging Party Price Change (%)'=  calcPriceDelta(object,party=TRUE,levels=levels,index="paasche")*100,
                         'Compensating Marginal Cost Reduction (%)' = sum(thiscmcr * outputPost[isparty]) / sum(outputPost[isparty], na.rm=TRUE),
                         'Consumer Harm ($)' = thiscv,
                         'Producer Benefit ($)' = thispsdelta,
@@ -202,7 +202,7 @@ setMethod(
   signature= "VertBargBertLogit",
   definition=function(object,revenue=TRUE,
                       levels=FALSE,parameters=FALSE,
-                      market=FALSE,insideOnly = TRUE,
+                      market=FALSE,insideOnly = FALSE,
                       digits=2,...){
     
     curWidth <-  getOption("width")
@@ -256,12 +256,12 @@ setMethod(
     isPartyHorzDown <- down@ownerPost %in% down@ownerPre &
                        down@ownerPost != down@ownerPre
     if(any(isPartyHorzDown)){
-    isPartyHorzDown <- down@ownerPost==down@ownerPost[isPartyHorzDown]
+    isPartyHorzDown <- down@ownerPost %in% down@ownerPost[isPartyHorzDown]
 }
 isPartyHorzUp <- up@ownerPost %in% up@ownerPre &
                  up@ownerPost !=   up@ownerPre
 if(any(isPartyHorzUp)){
-  isPartyHorzUp <- up@ownerPost==up@ownerPost[isPartyHorzUp]
+  isPartyHorzUp <- up@ownerPost %in% up@ownerPost[isPartyHorzUp]
 }
     isPartyVert <- unique(down@ownerPost[down@ownerPost == up@ownerPost &
                        down@ownerPre != up@ownerPre])
@@ -299,6 +299,8 @@ if(any(isPartyHorzUp)){
       thispsdeltaUp  <- sum(thispsPost$up - thispsPre$up,na.rm=TRUE)
       thispsdeltaDown  <- sum(thispsPost$down - thispsPre$down,na.rm=TRUE)
       
+      if(object@chain_level == "wholesaler") thispsdeltaDown <- -thispsdeltaUp
+      
       isparty <- isParty == "*"
       
       
@@ -317,8 +319,6 @@ if(any(isPartyHorzUp)){
                         'HHI Change' =  hhidelta,
                         'Up Price Change (%)' = priceDelta$up,
                         'Down Price Change (%)' = priceDelta$down,
-                        #'Merging Party Price Change (%)'= sum(priceDelta[isparty] * outputPost[isparty], na.rm=TRUE) / sum(outputPost[isparty]),
-                        #'Compensating Marginal Cost Reduction (%)' = sum(thiscmcr * outputPost[isparty]) / sum(outputPost[isparty]),
                         'Consumer Harm ($)' = thiscv,
                         'Up Producer Benefit ($)' = thispsdeltaUp,
                         'Down Producer Benefit ($)' = thispsdeltaDown,
@@ -381,16 +381,14 @@ if(any(isPartyHorzUp)){
 setMethod(
   f= "summary",
   signature= "Auction2ndCap",
-  definition=function(object,exAnte=FALSE,parameters=FALSE,market=TRUE,digits=2){
+  definition=function(object,exAnte=FALSE,levels=FALSE,parameters=FALSE,market=TRUE,digits=2){
 
     curWidth <-  getOption("width")
 
 
     pricePre   <-  calcPrices(object,preMerger=TRUE,exAnte=exAnte)
     pricePost  <-  calcPrices(object,preMerger=FALSE,exAnte=exAnte)
-    priceDelta <- (pricePost/pricePre - 1) * 100
-
-
+   
     outPre  <-  calcShares(object,TRUE,exAnte=exAnte) * 100
     outPost <-  calcShares(object,FALSE,exAnte=exAnte) * 100
 
@@ -400,7 +398,12 @@ setMethod(
 
     mcDelta <- object@mcDelta
 
-    outDelta <- (outPost/outPre - 1) * 100
+    if(!levels){ 
+      priceDelta <- (pricePost/pricePre - 1) * 100
+      outDelta <- (outPost/outPre - 1) * 100
+    }
+    else{ priceDelta <- pricePost - pricePre
+    outDelta <- outPost - outPre }
 
 
     isParty <- object@ownerPost != object@ownerPre
@@ -432,8 +435,8 @@ setMethod(
       results <- with(results,
                     data.frame(
                       'HHI Change' = as.integer(HHI(outPre/sum(outPre),owner=object@ownerPost) - HHI(outPre/sum(outPre),owner=object@ownerPre)),
-                      'Industry Price Change (%)' = sum(priceDelta * outPost/sum(outPost, na.rm = TRUE),na.rm=TRUE),
-                      'Merging Party Price Change (%)'= sum(priceDelta[isParty] * outPost[isParty], na.rm=TRUE) / sum(outPost[isParty], na.rm=TRUE),
+                      'Industry Price Change (%)' = calcPriceDelta(object,market=TRUE,levels=levels,index="paasche")*100,
+                      'Merging Party Price Change (%)'= calcPriceDelta(object,party=TRUE,levels=levels,index="paasche")*100,
                       'Compensating Marginal Cost Reduction (%)' = sum(thiscmcr * outPost[isParty]) / sum(outPost[isParty], na.rm=TRUE),
                       'Consumer Harm ($)' = thiscv,
                       'Producer Benefit ($)' = thispsdelta,

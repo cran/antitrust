@@ -2,6 +2,7 @@
 #' @name Logit-Functions
 #' @aliases logit
 #' logit.nests
+#' logit.cournot
 #' logit.nests.alm
 #' logit.cap
 #' logit.alm
@@ -9,9 +10,10 @@
 #' @description Calibrates consumer demand using (Nested) Logit
 #' and then simulates the price effect of a merger between two firms
 #' under the assumption that all firms in the market are playing a
-#' differentiated products Bertrand pricing game.
+#' either a differentiated products Bertrand pricing game or a differentiated
+#' products Cournot quantity game (logit.cournot).
 #' @description Let k denote the number of products produced by all
-#' firms playing the Bertrand pricing game below.
+#' firms playing the game below.
 #'
 #' @param prices A length k vector of product prices.
 #' @param shares A length k vector of product (quantity) shares. Values must be
@@ -37,6 +39,8 @@
 #' @param ownerPost EITHER a vector of length k whose values
 #'   indicate which firm produced a product after the merger OR
 #'   a k x k matrix of post-merger ownership shares.
+#' @param output a length 1 logical vector equal to TRUE if merger simulation performed
+#' on output market, FALSE if simulation performed on input market. Default TRUE.
 #' @param mktElast a negative value indicating market elasticity. Default is NA.
 #' @param mcDelta A vector of length k where each element equals the
 #'   proportional change in a product's marginal costs due to
@@ -238,6 +242,7 @@ NULL
 #'@export
 logit <- function(prices,shares,margins, diversions,
                   ownerPre,ownerPost,
+                  output=TRUE,
                   normIndex=ifelse(isTRUE(all.equal(sum(shares),1,check.names=FALSE)),1, NA),
                   mcDelta=rep(0,length(prices)),
                   subset=rep(TRUE,length(prices)),
@@ -260,6 +265,7 @@ logit <- function(prices,shares,margins, diversions,
                 ownerPre=ownerPre,
                 ownerPost=ownerPost,
                 insideSize=insideSize,
+                output=output,
                 mcDelta=mcDelta,
                 subset=subset,
                 priceOutside=priceOutside,
@@ -293,10 +299,75 @@ logit <- function(prices,shares,margins, diversions,
 
 }
 
+
+#'@rdname Logit-Functions
+#'@export
+logit.cournot <- function(prices,shares,margins, diversions,
+                  ownerPre,ownerPost,
+                  output=TRUE,
+                  normIndex=ifelse(isTRUE(all.equal(sum(shares),1,check.names=FALSE)),1, NA),
+                  mcDelta=rep(0,length(prices)),
+                  subset=rep(TRUE,length(prices)),
+                  insideSize = NA_real_,
+                  priceOutside = 0,
+                  priceStart = prices,
+                  isMax=FALSE,
+                  control.slopes,
+                  control.equ,
+                  labels=paste("Prod",1:length(prices),sep=""),
+                  ...
+){
+  
+  if(missing(diversions)){diversions <- matrix(NA,nrow=length(shares),ncol=length(shares))}
+  
+  ## Create Logit  container to store relevant data
+  result <- new("LogitCournot",prices=prices, shares=shares,
+                margins=margins, diversion = diversions,
+                normIndex=normIndex,
+                ownerPre=ownerPre,
+                ownerPost=ownerPost,
+                insideSize=insideSize,
+                output=output,
+                mcDelta=mcDelta,
+                subset=subset,
+                priceOutside=priceOutside,
+                priceStart=priceStart,
+                shareInside=ifelse(isTRUE(all.equal(sum(shares),1,check.names=FALSE,tolerance=1e-3)),1,sum(shares)),
+                labels=labels)
+  
+  if(!missing(control.slopes)){
+    result@control.slopes <- control.slopes
+  }
+  if(!missing(control.equ)){
+    result@control.equ <- control.equ
+  }
+  
+  ## Convert ownership vectors to ownership matrices
+  result@ownerPre  <- ownerToMatrix(result,TRUE)
+  result@ownerPost <- ownerToMatrix(result,FALSE)
+  
+  ## Calculate Demand Slope Coefficients
+  result <- calcSlopes(result)
+
+  ## Calculate marginal cost
+  result@mcPre <-  calcMC(result,TRUE)
+  result@mcPost <- calcMC(result,FALSE)
+  
+  ## Solve Non-Linear System for Price Changes
+  result@pricePre  <- calcPrices(result,preMerger=TRUE,isMax=isMax,...)
+  result@pricePost <- calcPrices(result,preMerger=FALSE,isMax=isMax,subset=subset,...)
+  
+  return(result)
+  
+}
+
+
+
 #'@rdname Logit-Functions
 #'@export
 logit.nests <- function(prices,shares,margins, diversions,
                         ownerPre,ownerPost,
+                        output=TRUE,
                         nests=rep(1,length(shares)),
                         normIndex=ifelse(sum(shares) < 1,NA,1),
                         mcDelta=rep(0,length(prices)),
@@ -353,6 +424,7 @@ logit.nests <- function(prices,shares,margins, diversions,
                 ownerPre=ownerPre,
                 ownerPost=ownerPost,
                 nests=nests,
+                output=output,
                 normIndex=normIndex,
                 parmsStart=parmsStart,
                 constraint=constraint,
@@ -394,6 +466,7 @@ logit.nests <- function(prices,shares,margins, diversions,
 logit.nests.alm <- function(prices,shares,margins,
                             ownerPre,ownerPost,
                             nests=rep(1,length(shares)),
+                            output=TRUE,
                             mcDelta=rep(0,length(prices)),
                             subset=rep(TRUE,length(prices)),
                             priceOutside=0,
@@ -441,6 +514,7 @@ logit.nests.alm <- function(prices,shares,margins,
                 ownerPre=ownerPre,
                 ownerPost=ownerPost,
                 nests=nests,
+                output=output,
                 mcDelta=mcDelta,
                 subset=subset,
                 priceOutside=priceOutside,
@@ -486,6 +560,7 @@ logit.cap <- function(prices,shares,margins,
                       capacitiesPre = rep(Inf , length(prices)),
                       capacitiesPost = capacitiesPre,
                       insideSize,
+                      output=TRUE,
                       normIndex=ifelse(sum(shares)<1,NA,1),
                       mcDelta=rep(0,length(prices)),
                       subset=rep(TRUE,length(prices)),
@@ -508,6 +583,7 @@ logit.cap <- function(prices,shares,margins,
                 normIndex=normIndex,
                 ownerPre=ownerPre,
                 ownerPost=ownerPost,
+                output=output,
                 mcDelta=mcDelta,
                 subset=subset,
                 priceOutside=priceOutside,
@@ -549,6 +625,7 @@ logit.alm <- function(prices,shares,margins,
                       ownerPre,ownerPost,
                       mktElast = NA_real_,
                       insideSize = NA_real_,
+                      output=TRUE,
                       mcDelta=rep(0,length(prices)),
                       subset=rep(TRUE,length(prices)),
                       priceOutside=0,
@@ -577,6 +654,7 @@ logit.alm <- function(prices,shares,margins,
                 ownerPost=ownerPost,
                 mktElast = mktElast,
                 insideSize = insideSize,
+                output=output,
                 mcDelta=mcDelta,
                 subset=subset,
                 priceOutside=priceOutside,
@@ -622,6 +700,7 @@ logit.cap.alm <- function(prices,shares,margins,
                           capacitiesPost = capacitiesPre,
                           mktElast = NA_real_,
                           insideSize,
+                          output=TRUE,
                           mcDelta=rep(0,length(prices)),
                           subset=rep(TRUE,length(prices)),
                           priceOutside=0,
@@ -652,6 +731,7 @@ logit.cap.alm <- function(prices,shares,margins,
                 insideSize=insideSize,
                 ownerPre=ownerPre,
                 ownerPost=ownerPost,
+                output=output,
                 mcDelta=mcDelta,
                 subset=subset,
                 priceOutside=priceOutside,

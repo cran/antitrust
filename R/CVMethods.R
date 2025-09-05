@@ -106,11 +106,12 @@ setMethod(
 
     # outVal <- ifelse(object@shareInside<1, 1, 0)
     outVal <- ifelse(is.na(object@normIndex), 1, 0)
+    output <- ifelse(object@output,1,-1)
 
     VPre  <- sum(exp(meanval + (object@pricePre - object@priceOutside)*alpha))  + outVal
     VPost <- sum(exp(meanval + (object@pricePost - object@priceOutside)*alpha)[subset] ) + outVal
 
-    result <- log(VPost/VPre)/alpha
+    result <- output*log(VPost/VPre)/alpha
 
     if(!is.na(mktSize)){ result <- result * mktSize}
 
@@ -180,15 +181,16 @@ setMethod(
     alpha       <- object@slopes$alpha
     sigma       <- object@slopes$sigma
     meanval     <- object@slopes$meanval
+    mktSize <- object@mktSize
 
+    outVal <- ifelse(is.na(object@normIndex), exp(alpha*object@priceOutside), 0)
 
+    VPre  <- sum( tapply(exp((meanval + object@pricePre*alpha)  / sigma[nests]),nests,sum,na.rm=TRUE) ^ sigma ) + outVal
+    VPost <- sum( tapply(exp((meanval + object@pricePost*alpha) / sigma[nests]),nests,sum,na.rm=TRUE) ^ sigma ) + outVal
 
-    VPre  <- sum( tapply(exp((meanval + object@pricePre*alpha)  / sigma[nests]),nests,sum,na.rm=TRUE) ^ sigma )
-    VPost <- sum( tapply(exp((meanval + object@pricePost*alpha) / sigma[nests]),nests,sum,na.rm=TRUE) ^ sigma )
-
-
-
+  
     result <- log(VPost/VPre)/alpha
+    if(!is.na(mktSize)){ result <- result * mktSize}
     names(result) <- NULL
     return(result)
 
@@ -206,6 +208,8 @@ setMethod(
     meanvalPre = object@slopes$meanval
     idx <- object@normIndex
     subset <- object@subset
+    output <- object@output
+    outSign <- ifelse(output,-1,1)
     
     mcDelta <- object@mcDelta
     
@@ -230,12 +234,12 @@ setMethod(
     
     
     
-    result <-   - log(VPost/VPre)/alpha  
-    result <- result - (sum(marginPost,na.rm=TRUE) - sum(marginPre, na.rm =TRUE))
+    result <-   outSign * log(VPost/VPre)/alpha  
+    result <- result + outSign*(sum(marginPost,na.rm=TRUE) - sum(marginPre, na.rm =TRUE))
     
     if(!is.na(mktSize)){result <- mktSize * result}
 
-    return(-result)
+    return(outSign*result)
   })
 
 
@@ -247,7 +251,7 @@ setMethod(
   definition=function(object){
     
     down <- object@down
-    logitCV <- selectMethod("CV","Logit")
+    logitCV <- selectMethod("CV",class(down))
     
     return(logitCV(down))
   }
@@ -320,6 +324,7 @@ setMethod(
 
     gamma       <- object@slopes$gamma
     meanval     <- object@slopes$meanval
+    output <- ifelse(object@output,1,-1)
     
 
     outVal <- ifelse(is.na(object@normIndex), 1, 0)
@@ -327,7 +332,7 @@ setMethod(
     VPre  <- sum(meanval * (object@pricePre / object@priceOutside)^(1-gamma),na.rm=TRUE) + outVal
     VPost <- sum(meanval * (object@pricePost/ object@priceOutside)^(1-gamma),na.rm=TRUE) + outVal
 
-    result <- log(VPost/VPre) / ((1+alpha)*(1-gamma))
+    result <- output*log(VPost/VPre) / ((1+alpha)*(1-gamma))
 
     result <- exp(result) - 1
 

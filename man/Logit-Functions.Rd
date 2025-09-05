@@ -4,6 +4,7 @@
 \alias{Logit-Functions}
 \alias{logit}
 \alias{logit.nests}
+\alias{logit.cournot}
 \alias{logit.nests.alm}
 \alias{logit.cap}
 \alias{logit.alm}
@@ -17,6 +18,28 @@ logit(
   diversions,
   ownerPre,
   ownerPost,
+  output = TRUE,
+  normIndex = ifelse(isTRUE(all.equal(sum(shares), 1, check.names = FALSE)), 1, NA),
+  mcDelta = rep(0, length(prices)),
+  subset = rep(TRUE, length(prices)),
+  insideSize = NA_real_,
+  priceOutside = 0,
+  priceStart = prices,
+  isMax = FALSE,
+  control.slopes,
+  control.equ,
+  labels = paste("Prod", 1:length(prices), sep = ""),
+  ...
+)
+
+logit.cournot(
+  prices,
+  shares,
+  margins,
+  diversions,
+  ownerPre,
+  ownerPost,
+  output = TRUE,
   normIndex = ifelse(isTRUE(all.equal(sum(shares), 1, check.names = FALSE)), 1, NA),
   mcDelta = rep(0, length(prices)),
   subset = rep(TRUE, length(prices)),
@@ -37,6 +60,7 @@ logit.nests(
   diversions,
   ownerPre,
   ownerPost,
+  output = TRUE,
   nests = rep(1, length(shares)),
   normIndex = ifelse(sum(shares) < 1, NA, 1),
   mcDelta = rep(0, length(prices)),
@@ -59,6 +83,7 @@ logit.nests.alm(
   ownerPre,
   ownerPost,
   nests = rep(1, length(shares)),
+  output = TRUE,
   mcDelta = rep(0, length(prices)),
   subset = rep(TRUE, length(prices)),
   priceOutside = 0,
@@ -81,6 +106,7 @@ logit.cap(
   capacitiesPre = rep(Inf, length(prices)),
   capacitiesPost = capacitiesPre,
   insideSize,
+  output = TRUE,
   normIndex = ifelse(sum(shares) < 1, NA, 1),
   mcDelta = rep(0, length(prices)),
   subset = rep(TRUE, length(prices)),
@@ -101,6 +127,7 @@ logit.alm(
   ownerPost,
   mktElast = NA_real_,
   insideSize = NA_real_,
+  output = TRUE,
   mcDelta = rep(0, length(prices)),
   subset = rep(TRUE, length(prices)),
   priceOutside = 0,
@@ -123,6 +150,7 @@ logit.cap.alm(
   capacitiesPost = capacitiesPre,
   mktElast = NA_real_,
   insideSize,
+  output = TRUE,
   mcDelta = rep(0, length(prices)),
   subset = rep(TRUE, length(prices)),
   priceOutside = 0,
@@ -154,6 +182,9 @@ a k x k matrix of pre-merger ownership shares.}
 \item{ownerPost}{EITHER a vector of length k whose values
 indicate which firm produced a product after the merger OR
 a k x k matrix of post-merger ownership shares.}
+
+\item{output}{a length 1 logical vector equal to TRUE if merger simulation performed
+on output market, FALSE if simulation performed on input market. Default TRUE.}
 
 \item{normIndex}{An integer equalling the index (position) of the
 inside product whose mean valuation will be normalized to 1. Default
@@ -232,10 +263,11 @@ child class of \code{\linkS4class{Logit}.}
 Calibrates consumer demand using (Nested) Logit
 and then simulates the price effect of a merger between two firms
 under the assumption that all firms in the market are playing a
-differentiated products Bertrand pricing game.
+either a differentiated products Bertrand pricing game or a differentiated
+products Cournot quantity game (logit.cournot).
 
 Let k denote the number of products produced by all
-firms playing the Bertrand pricing game below.
+firms playing the game below.
 }
 \details{
 Using product prices, quantity shares and all of the

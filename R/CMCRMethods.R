@@ -55,6 +55,8 @@ setMethod(
     
     isParty <- rowSums( abs(object@ownerPost - object@ownerPre) ) > 0
 
+    output <- object@output
+    outSign <- ifelse(output,1,-1) 
     ##Compute pre-merger margins
     marginPre  <- calcMargins(object,preMerger=TRUE)
 
@@ -63,10 +65,12 @@ setMethod(
     object@ownerPre <- object@ownerPost
     marginPost <- calcMargins(object,preMerger=TRUE)
 
-    cmcr <- (marginPost - marginPre)
+    cmcr <-  (marginPost - marginPre)
     
-    if(rel=="cost") cmcr <- cmcr/(1 - marginPre)
-    
+    if(rel=="cost"){
+     if(output){ cmcr <- cmcr/(1 - marginPre)}
+      else{cmcr <- cmcr/(1 + marginPre)}
+    }
     names(cmcr) <- object@labels
 
     cmcr <- cmcr[isParty]
@@ -238,7 +242,7 @@ setMethod(
     if(!levels){
       if(rel=="cost"){result <- result/object@mcPre}
       else{result <- result/object@pricePre}
-      result <- result[isParty]*100
+      result <- result*100
     }
     
     if(market){
